@@ -3,7 +3,7 @@ import json
 import torch
 import torch.nn.functional as F
 from tqdm import tqdm
-from torch.utils.data import Dataset, DataLoader, random_split
+from torch.utils.data import Dataset, DataLoader
 from torch.optim import AdamW
 from torch.cuda.amp import autocast, GradScaler
 from transformers import AutoModel, AutoTokenizer
@@ -12,19 +12,17 @@ from typing import List, Dict
 # --- CONFIGURATION VARIABLES --- #
 # 模型和数据路径
 LLM_MODEL_PATH = "/root/autodl-tmp/huggingface/hub/models--meta-llama--Meta-Llama-3-8B-Instruct/snapshots/8afb486c1db24fe5011ec46dfbe5b5dccdb575c2"
-UEM_MODEL_PATH = "/root/autodl-tmp/huggingface/hub/models--FacebookAI--xlm-roberta-base/snapshots/e73636d4f797dec63c3081bb6ed5c7b0bb3f2089"
+UEM_MODEL_PATH = "/root/autodl-tmp/huggingface/hub/models--microsoft--deberta-v3-large/snapshots/64a8c8eab3e352a784c658aef62be1662607476f"
 
-# --- 修改点 1: 指定独立的训练和验证文件 ---
+# --- 训练和验证文件 ---
 TRAIN_DATA_FILE = "/root/autodl-tmp/PAUE-II/benchmark/reprocess/train/distinct/train_val_grouped.jsonl"  # 使用增强后的训练数据
-VAL_DATA_FILE = "/root/autodl-tmp/PAUE-II/benchmark/reprocess/test/test_anony_with_loss.jsonl"   # 使用原始、独立的验证数据
-
-CKPT_DIR = "/root/autodl-tmp/PAUE-II/ckpts/multi_tokens"   
+VAL_DATA_FILE = "/root/autodl-tmp/PAUE-II/benchmark/reprocess/test/test_anony_with_loss.jsonl"   # 独立的验证数据
+CKPT_DIR = "/root/autodl-tmp/PPPUE/ckpt"   
 
 # 训练超参数
 LEARNING_RATE = 1e-5
 EPOCHS = 100
-BATCH_SIZE = 1
-ACCUMULATION_STEPS = 8 # 每 8 个样本更新一次，等效于 BATCH_SIZE=8
+BATCH_SIZE = 4
 PREFIX_LENGTH = 5 
 UEM_DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 LLM_DEVICE = "cuda:1" if torch.cuda.is_available() and torch.cuda.device_count() > 1 else UEM_DEVICE
@@ -180,8 +178,6 @@ class TrainableEnhancer(torch.nn.Module):
         
         return loss
 
-import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from _utils.model import load_frozen_llm
 
 def evaluate(model, data_loader):
@@ -219,14 +215,9 @@ def main():
     print(f"Checkpoints will be saved to: {CKPT_DIR}")
     # 加载模型和分词器
     llm_frozen, llm_tokenizer = load_frozen_llm(LLM_MODEL_PATH, LLM_DEVICE)
-    
-    # --- 启用梯度检查点 ---
-    # 这会用计算时间换取显存，显著降低激活值的内存占用
-    llm_frozen.gradient_checkpointing_enable()
-    
     uem_tokenizer = AutoTokenizer.from_pretrained(UEM_MODEL_PATH)
     
-    # --- 修改点 3: 分别从特定文件加载训练集和验证集 ---
+    # --- 分别从特定文件加载训练集和验证集 ---
     train_dataset = GetDataset(TRAIN_DATA_FILE)
     val_dataset = GetDataset(VAL_DATA_FILE)
     
@@ -262,10 +253,9 @@ def main():
         
         model.train()
         total_train_loss = 0
-        # --- 适配梯度累积 ---
-        optimizer.zero_grad() # 在循环开始前清零梯度
         
         for i, batch in enumerate(tqdm(train_loader, desc=f"Training Epoch {epoch + 1}")):
+            optimizer.zero_grad(set_to_none=True)
             
             # 1. 计算教师 logits (无梯度)
             logits_teacher = model.get_teacher_logits(
@@ -281,26 +271,21 @@ def main():
                     anonymized_texts=batch['anonymized_text'],
                     logits_teacher=logits_teacher
                 )
-                # --- 修改：对累积的损失进行平均 ---
-                loss = loss / ACCUMULATION_STEPS
 
             if torch.isnan(loss):
                 print("Warning: Loss is NaN before scaling, skipping update.")
                 continue
 
+            loss_value = loss.item()
             scaler.scale(loss).backward()
             
-            # --- 每 ACCUMULATION_STEPS 次执行一次优化器步骤 ---
-            if (i + 1) % ACCUMULATION_STEPS == 0:
-                scaler.unscale_(optimizer)
-                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-                scaler.step(optimizer)
-                scaler.update()
-                optimizer.zero_grad() # 更新后清零梯度
+            scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            scaler.step(optimizer)
+            scaler.update()
             
-            total_train_loss += loss.item() * ACCUMULATION_STEPS # 乘以累积步数以还原真实损失
+            total_train_loss += loss_value
 
-            # --- 修改点: 显存清理 ---
             del logits_teacher, loss
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()

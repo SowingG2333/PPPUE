@@ -69,7 +69,7 @@ def generate_api_response(prompt_text: str, model: str, temperature: float, max_
         # 在并行模式下，直接返回错误信息比打印更好
         return f"Error: API call failed with exception: {e}"
 
-# --- 新增的并行处理辅助函数 ---
+# --- 并行处理辅助函数 ---
 def process_record(data: Dict[str, Any], model: str) -> Dict[str, Any]:
     """
     处理单条记录：生成信息损失描述并将其添加到数据字典中。
@@ -87,7 +87,7 @@ def process_record(data: Dict[str, Any], model: str) -> Dict[str, Any]:
     data['loss_description_sentence'] = description
     return data
 
-# --- 主流程 (已修改为并行) ---
+# --- 主流程 ---
 def main():
     parser = argparse.ArgumentParser(description="Generate information loss descriptions in parallel using an API.")
     # --- 新增命令行参数 ---
@@ -100,7 +100,6 @@ def main():
     parser.add_argument("--base_url", type=str, default=None, help="Override API base URL (default: use environment variable or DeepSeek default).")
     args = parser.parse_args()
 
-    # Client 初始化部分保持不变
     if args.api_key or args.base_url:
         try:
             global client

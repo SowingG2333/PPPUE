@@ -52,7 +52,6 @@ def resplit_data_grouped(input_file: str, output_dir: str, test_ratio: float = 0
     
     # 计算测试集的组数
     test_group_size = int(len(personality_keys) * test_ratio)
-    
     test_keys = personality_keys[:test_group_size]
     train_keys = personality_keys[test_group_size:]
 
@@ -81,7 +80,6 @@ def resplit_data_grouped(input_file: str, output_dir: str, test_ratio: float = 0
                 f.write(json.dumps(item, ensure_ascii=False) + '\n')
 
     # 5. 写入文件
-    # 根据您的要求，我们将训练集和验证集合并
     train_file_path = os.path.join(output_dir, "train_val_grouped.jsonl")
     test_file_path = os.path.join(output_dir, "test_grouped.jsonl")
 

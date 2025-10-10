@@ -147,7 +147,7 @@ def evaluate_single_entry(
             sentence_representation = uem_outputs.last_hidden_state[:, 0, :]
             clean_prefix = eval_model.projection_layer(sentence_representation)
             
-        # <--- 修改点 2.b (1/2): 添加 reshape 操作，与 train.py 保持一致
+        # 添加 reshape 操作，与 train.py 保持一致
         clean_prefix = clean_prefix.view(-1, config.PREFIX_LENGTH, shared_llm.config.hidden_size)
         
         # 2. 根据评估模式处理前缀 (裁剪或加噪)
@@ -167,7 +167,6 @@ def evaluate_single_entry(
                 prefix_vector = clean_prefix
         
         # 3. 将前缀嵌入移动到 LLM 的设备上
-        # <--- 修改点 2.b (2/2): 移除 .unsqueeze(1) 操作
         prefix_embeds = prefix_vector.to(device=config.LLM_DEVICE, dtype=shared_llm.dtype)
 
         # 4. 手动构建聊天模板的嵌入

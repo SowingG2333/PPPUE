@@ -8,14 +8,12 @@ from openai import OpenAI
 from typing import Dict, List, Optional
 
 # --- 1. 配置 ---
-
-# DeepSeek API的配置，也可以通过环境变量设置
+# DeepSeek API的配置，可以通过环境变量设置
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY")
 DEEPSEEK_API_BASE = "https://api.deepseek.com/v1"
 JUDGE_MODEL_NAME = "deepseek-chat"
 
 # --- 2. 提示词模板 ---
-
 PROMPT_SYSTEM_PARAPHRASE = """
 You are an expert in natural language, specializing in paraphrasing text while preserving all factual information and persona.
 Your goal is to rewrite a given text in a new style, as if a different person with the same underlying knowledge wrote it.
@@ -36,7 +34,6 @@ Your rewritten text MUST adhere to these strict rules:
 """
 
 # --- 3. 辅助函数 ---
-
 def get_api_client() -> OpenAI:
     """初始化并返回API客户端"""
     if not DEEPSEEK_API_KEY:
@@ -106,7 +103,6 @@ def process_item(item: Dict, index: int, client: OpenAI) -> Optional[Dict]:
 
 
 # --- 4. 主流程 ---
-
 def main(args):
     """主函数，执行数据增强流程"""
     api_client = get_api_client()
@@ -182,7 +178,6 @@ def main(args):
 
     print(f"\n--- 数据增强完成！---")
     print(f"增强后的数据已追加到: {args.output_file}")
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="使用DeepSeek API并行地对JSONL数据集进行数据增强。")

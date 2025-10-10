@@ -140,11 +140,9 @@ def adversarial_anonymization(
             meta["final_leaked_attributes"] = leaked
     return current_anonymized_response, meta
 
-# --- 以下是修改的核心部分 ---
-
 def process_record(data: Dict[str, Any], max_iterations: int) -> Dict[str, Any]:
     """
-    一个辅助函数，用于处理单条记录。
+    辅助函数，用于处理单条记录。
     接收一个包含原始数据的字典，返回处理后的完整字典。
     """
     personality = data.get("personality")
@@ -236,7 +234,6 @@ def main():
                 failed_out.write(json.dumps(result, ensure_ascii=False) + '\n')
 
     print(f"Anonymized data saved to '{args.output_file}'.")
-
 
 if __name__ == "__main__":
     main()
