@@ -24,12 +24,12 @@ class Config:
 
     # --- 模型路径 ---
     LLM_PATH = "/root/autodl-tmp/huggingface/hub/models--meta-llama--Meta-Llama-3-8B-Instruct/snapshots/8afb486c1db24fe5011ec46dfbe5b5dccdb575c2"
-    IEM_PATH = "/root/autodl-tmp/huggingface/hub/models--FacebookAI--xlm-roberta-base/snapshots/e73636d4f797dec63c3081bb6ed5c7b0bb3f2089"
-    CKPT_PATH = "/root/autodl-tmp/PAUE-II/ckpts/multi_tokens/best_model.pth"
+    IEM_PATH = "/root/autodl-tmp/huggingface/hub/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09"
+    CKPT_PATH = "/root/autodl-tmp/PPPUE/ckpt/seed_43/best_model.pth"
     
     # --- 数据文件 ---
-    INPUT_DATA_FILE = "/root/autodl-tmp/PAUE-II/benchmark/reprocess/test/test_anony_with_loss.jsonl" 
-    OUTPUT_DIR = "/root/autodl-tmp/PAUE-II/results"
+    INPUT_DATA_FILE = "/root/autodl-tmp/PPPUE/benchmark/reprocess/seed_43/test_43.jsonl" 
+    OUTPUT_DIR = "/root/autodl-tmp/PPPUE/results"
     
     # --- 实验设置 ---
     EVAL_MODE = "CLIPPING_ONLY" # Options: BASELINE, STANDARD, CLIPPING_ONLY, DP, ORIGINAL_TEXT_BASELINE

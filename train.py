@@ -6,23 +6,23 @@ from tqdm import tqdm
 from torch.utils.data import Dataset, DataLoader
 from torch.optim import AdamW
 from torch.cuda.amp import autocast, GradScaler
-from transformers import AutoModel, AutoTokenizer
+from transformers import AutoModel, AutoTokenizer, XLMRobertaTokenizer
 from typing import List, Dict
 
 # --- CONFIGURATION VARIABLES --- #
 # 模型和数据路径
 LLM_MODEL_PATH = "/root/autodl-tmp/huggingface/hub/models--meta-llama--Meta-Llama-3-8B-Instruct/snapshots/8afb486c1db24fe5011ec46dfbe5b5dccdb575c2"
-UEM_MODEL_PATH = "/root/autodl-tmp/huggingface/hub/models--microsoft--deberta-v3-large/snapshots/64a8c8eab3e352a784c658aef62be1662607476f"
+UEM_MODEL_PATH = "/root/autodl-tmp/huggingface/hub/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09"
 
 # --- 训练和验证文件 ---
-TRAIN_DATA_FILE = "/root/autodl-tmp/PAUE-II/benchmark/reprocess/train/distinct/train_val_grouped.jsonl"  # 使用增强后的训练数据
-VAL_DATA_FILE = "/root/autodl-tmp/PAUE-II/benchmark/reprocess/test/test_anony_with_loss.jsonl"   # 独立的验证数据
-CKPT_DIR = "/root/autodl-tmp/PPPUE/ckpt"   
+TRAIN_DATA_FILE = "/root/autodl-tmp/PPPUE/benchmark/reprocess/seed_43/train_43.jsonl"  # 增强后的训练数据
+VAL_DATA_FILE = "/root/autodl-tmp/PPPUE/benchmark/reprocess/seed_43/val_43.jsonl"   # 独立的验证数据
+CKPT_DIR = "/root/autodl-tmp/PPPUE/ckpt/seed_43"   
 
 # 训练超参数
-LEARNING_RATE = 1e-5
+LEARNING_RATE = 1e-6
 EPOCHS = 100
-BATCH_SIZE = 4
+BATCH_SIZE = 1
 PREFIX_LENGTH = 5 
 UEM_DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 LLM_DEVICE = "cuda:1" if torch.cuda.is_available() and torch.cuda.device_count() > 1 else UEM_DEVICE
@@ -215,7 +215,11 @@ def main():
     print(f"Checkpoints will be saved to: {CKPT_DIR}")
     # 加载模型和分词器
     llm_frozen, llm_tokenizer = load_frozen_llm(LLM_MODEL_PATH, LLM_DEVICE)
-    uem_tokenizer = AutoTokenizer.from_pretrained(UEM_MODEL_PATH)
+    try:
+        uem_tokenizer = AutoTokenizer.from_pretrained(UEM_MODEL_PATH, use_fast=False)
+    except ValueError:
+        # Fallback for environments missing fast tokenizer dependencies
+        uem_tokenizer = XLMRobertaTokenizer.from_pretrained(UEM_MODEL_PATH)
     
     # --- 分别从特定文件加载训练集和验证集 ---
     train_dataset = GetDataset(TRAIN_DATA_FILE)
