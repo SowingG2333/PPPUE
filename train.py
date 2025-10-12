@@ -6,22 +6,19 @@ import torch.nn.functional as F
 from tqdm import tqdm
 from torch.utils.data import Dataset, DataLoader
 from torch.optim import AdamW
-from torch.cuda.amp import autocast, GradScaler
-from transformers import AutoModel, AutoTokenizer, XLMRobertaTokenizer, AutoModelForCausalLM
-from peft import LoraConfig, get_peft_model
-from typing import List, Dict, Tuple
+from transformers import AutoModel, AutoTokenizer, AutoModelForCausalLM
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+from typing import List, Dict, Tuple, Optional, Union
+from transformers.models.llama.modeling_llama import LlamaForCausalLM, LlamaModel, LlamaDecoderLayer
+from transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
 
 # --- CONFIGURATION VARIABLES --- #
-# 模型和数据路径
 LLM_MODEL_PATH = "/root/autodl-tmp/huggingface/hub/models--meta-llama--Meta-Llama-3-8B-Instruct/snapshots/8afb486c1db24fe5011ec46dfbe5b5dccdb575c2"
 UEM_MODEL_PATH = "/root/autodl-tmp/huggingface/hub/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09"
-
-# --- 训练和验证文件 ---
 TRAIN_DATA_FILE = "/root/autodl-tmp/PPPUE/benchmark/reprocess/task_loss_description/train/seed_42/train_split.jsonl"
 VAL_DATA_FILE = "/root/autodl-tmp/PPPUE/benchmark/reprocess/task_loss_description/train/seed_42/val_split.jsonl"
-CKPT_DIR = "/root/autodl-tmp/PPPUE/ckpt/LoRA_CrossAttention_SeparateTeacher_Fixed"
+CKPT_DIR = "/root/autodl-tmp/PPPUE/ckpt"
 
-# 训练超参数
 LEARNING_RATE = 5e-6
 EPOCHS = 100
 BATCH_SIZE = 1
@@ -31,7 +28,6 @@ LLM_DEVICE_TEACHER = "cuda:0"
 CLIPPING_NORM = 1.0
 DISTILLATION_TEMP = 1.0
 
-# ----- Reddit 系统提示词 -----
 REDDIT_PROMPT_SYSTEM = "You are an expert in analyzing Reddit posts to infer user's occupations."
 REDDIT_PROMPT_USER = """
 Based on the conversational context provided by the [Question Asked] and the [User Response], your goal is to infer the user's occupation.
@@ -41,15 +37,225 @@ Your response MUST be a single occupation name, without any additional text or e
 Your answer:
 """
 
-# _utils/model.py 里有 load_frozen_llm 函数
-def load_frozen_llm(model_path: str, device: str) -> Tuple[AutoModelForCausalLM, AutoTokenizer]:
-    print(f"Loading model from: {model_path} onto {device}...")
-    model = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=torch.bfloat16, device_map=device)
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-    print("Model and tokenizer loaded successfully.")
-    return model, tokenizer
+# --- 1. 交叉注意力适配器模块 ---
+class CrossAttentionAdapter(nn.Module):
+    def __init__(self, hidden_size, context_size, num_heads=8):
+        super().__init__()
+        self.num_heads = num_heads
+        self.head_dim = hidden_size // num_heads
+        self.query_proj = nn.Linear(hidden_size, hidden_size)
+        self.key_proj = nn.Linear(context_size, hidden_size)
+        self.value_proj = nn.Linear(context_size, hidden_size)
+        self.output_proj = nn.Linear(hidden_size, hidden_size)
+        self.layer_norm = nn.LayerNorm(hidden_size)
+
+    def forward(self, hidden_states, context):
+        if hidden_states.dim() == 2:
+            hidden_states = hidden_states.unsqueeze(0)
+        residual = hidden_states
+        batch_size, seq_len, _ = hidden_states.shape
+        q = self.query_proj(hidden_states).view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
+        k = self.key_proj(context).view(context.size(0), context.size(1), self.num_heads, self.head_dim).transpose(1, 2)
+        v = self.value_proj(context).view(context.size(0), context.size(1), self.num_heads, self.head_dim).transpose(1, 2)
+        scores = torch.matmul(q, k.transpose(-2, -1)) / (self.head_dim ** 0.5)
+        attention_probs = F.softmax(scores, dim=-1)
+        attention_output = torch.matmul(attention_probs, v).transpose(1, 2).reshape(batch_size, seq_len, -1)
+        output = self.output_proj(attention_output)
+        return self.layer_norm(output + residual)
+
+# --- 2. 自定义解码器层 ---
+class PAUE_LlamaDecoderLayer(LlamaDecoderLayer):
+    def __init__(self, config, layer_idx: int):
+        super().__init__(config, layer_idx)
+        self.cross_attention_adapter = CrossAttentionAdapter(
+            hidden_size=config.hidden_size,
+            context_size=config.hidden_size
+        )
+        # 强制禁用 gradient checkpointing
+        self.gradient_checkpointing = False
+
+    def forward(
+        self,
+        hidden_states: torch.Tensor,
+        attention_mask: Optional[torch.Tensor] = None,
+        position_ids: Optional[torch.LongTensor] = None,
+        past_key_value: Optional[Tuple[torch.Tensor]] = None,
+        output_attentions: Optional[bool] = False,
+        use_cache: Optional[bool] = False,
+        **kwargs,
+    ) -> Tuple[torch.FloatTensor, Optional[Tuple[torch.FloatTensor, torch.FloatTensor]]]:
+        
+        # 调用父类 forward
+        raw_outputs = super().forward(
+            hidden_states=hidden_states,
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+            past_key_value=past_key_value,
+            output_attentions=output_attentions,
+            use_cache=use_cache,
+            **kwargs,
+        )
+        
+        if isinstance(raw_outputs, tuple):
+            current_hidden_states = raw_outputs[0]
+            other_outputs = raw_outputs[1:]
+        else:
+            current_hidden_states = raw_outputs
+            other_outputs = ()
+
+        # 从层属性获取 context
+        context = getattr(self, '_paue_context', None)
+        if context is not None:
+            enhanced_hidden_states = self.cross_attention_adapter(
+                current_hidden_states, 
+                context
+            )
+        else:
+            enhanced_hidden_states = current_hidden_states
+        
+        return (enhanced_hidden_states,) + other_outputs
+
+# --- 3. 自定义 Llama 模型 (移除 cache_position 参数) ---
+class PAUE_LlamaModel(LlamaModel):
+    def __init__(self, config):
+        super().__init__(config)
+        self.layers = nn.ModuleList([
+            PAUE_LlamaDecoderLayer(config, i) for i in range(config.num_hidden_layers)
+        ])
+        # 强制禁用 gradient checkpointing
+        self.gradient_checkpointing = False
+        self._gradient_checkpointing_func = None
+
+    def forward(
+        self,
+        input_ids: Optional[torch.LongTensor] = None,
+        attention_mask: Optional[torch.Tensor] = None,
+        position_ids: Optional[torch.LongTensor] = None,
+        past_key_values: Optional[List[torch.FloatTensor]] = None,
+        inputs_embeds: Optional[torch.FloatTensor] = None,
+        use_cache: Optional[bool] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = None,
+        # 🔴 移除 cache_position 参数
+        **kwargs,
+    ):
+        # 提取 context 并分发到所有层
+        context = kwargs.pop("context", None)
+        if context is not None:
+            for layer in self.layers:
+                layer._paue_context = context
+        
+        # 调用父类 forward (不传递 cache_position)
+        outputs = super().forward(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+            past_key_values=past_key_values,
+            inputs_embeds=inputs_embeds,
+            use_cache=use_cache,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+            **kwargs,  # 其他参数
+        )
+        
+        # 清理 context
+        if context is not None:
+            for layer in self.layers:
+                layer._paue_context = None
+        
+        return outputs
+
+# --- 4. 顶层因果语言模型 ---
+class PAUE_LlamaForCausalLM(LlamaForCausalLM):
+    def __init__(self, config):
+        super().__init__(config)
+        self.model = PAUE_LlamaModel(config)
+        self.supports_gradient_checkpointing = False
+
+    def forward(
+        self,
+        input_ids: Optional[torch.LongTensor] = None,
+        attention_mask: Optional[torch.Tensor] = None,
+        position_ids: Optional[torch.LongTensor] = None,
+        past_key_values: Optional[Tuple[Tuple[torch.FloatTensor]]] = None,
+        inputs_embeds: Optional[torch.FloatTensor] = None,
+        labels: Optional[torch.LongTensor] = None,
+        use_cache: Optional[bool] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = None,
+        context: Optional[torch.FloatTensor] = None,
+        **kwargs,
+    ) -> Union[Tuple, CausalLMOutputWithPast]:
+        
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
+        output_hidden_states = output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+
+        outputs = self.model(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+            past_key_values=past_key_values,
+            inputs_embeds=inputs_embeds,
+            use_cache=use_cache,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+            context=context,
+            **kwargs,
+        )
+
+        hidden_states = outputs[0]
+        logits = self.lm_head(hidden_states)
+
+        loss = None
+        if labels is not None:
+            shift_logits = logits[..., :-1, :].contiguous()
+            shift_labels = labels[..., 1:].contiguous()
+            loss_fct = nn.CrossEntropyLoss()
+            shift_logits = shift_logits.view(-1, self.config.vocab_size)
+            shift_labels = shift_labels.view(-1)
+            shift_labels = shift_labels.to(shift_logits.device)
+            loss = loss_fct(shift_logits, shift_labels)
+
+        if not return_dict:
+            output = (logits,) + outputs[1:]
+            return (loss,) + output if loss is not None else output
+
+        return CausalLMOutputWithPast(
+            loss=loss,
+            logits=logits,
+            past_key_values=outputs.past_key_values,
+            hidden_states=outputs.hidden_states,
+            attentions=outputs.attentions,
+        )
+
+class TrainableEnhancer(nn.Module):
+    def __init__(self, uem_path: str, uem_tokenizer, llm_hidden_size: int):
+        super().__init__()
+        self.uem_tokenizer = uem_tokenizer
+        self.uem = AutoModel.from_pretrained(uem_path)
+        self.projection_layer = nn.Sequential(
+            nn.Linear(self.uem.config.hidden_size, self.uem.config.hidden_size * 4),
+            nn.GELU(),
+            nn.Linear(self.uem.config.hidden_size * 4, llm_hidden_size)
+        )
+
+    def forward(self, loss_description_sentences: List[str]) -> torch.Tensor:
+        uem_inputs = self.uem_tokenizer(loss_description_sentences, return_tensors="pt", padding=True, truncation=True, max_length=128).to(self.uem.device)
+        with torch.amp.autocast(device_type=self.uem.device.type, enabled=self.uem.device.type == 'cuda'):
+            uem_outputs = self.uem(**uem_inputs)
+            last_hidden_state = uem_outputs.last_hidden_state
+            attention_mask = uem_inputs['attention_mask']
+            mask_expanded = attention_mask.unsqueeze(-1).expand(last_hidden_state.size()).float()
+            sum_embeddings = torch.sum(last_hidden_state * mask_expanded, 1)
+            sum_mask = torch.clamp(mask_expanded.sum(1), min=1e-9)
+            uem_representation = sum_embeddings / sum_mask
+            context_vector = self.projection_layer(uem_representation).unsqueeze(1)
+        return context_vector.to(dtype=torch.bfloat16)
 
 class GetDataset(Dataset):
     def __init__(self, jsonl_path: str):
@@ -66,196 +272,177 @@ class GetDataset(Dataset):
             "loss_description_sentences": item["loss_description_sentence"],
         }
 
-class CrossAttentionLayer(nn.Module):
-    def __init__(self, hidden_size, num_heads=8):
-        super().__init__()
-        self.num_heads, self.head_dim = num_heads, hidden_size // num_heads
-        self.query, self.key, self.value, self.out = [nn.Linear(hidden_size, hidden_size) for _ in range(4)]
-        self.layer_norm = nn.LayerNorm(hidden_size)
-    def forward(self, x, context):
-        residual, orig_dtype = x, x.dtype
-        x, context = x.to(self.layer_norm.weight.dtype), context.to(self.layer_norm.weight.dtype)
-        x_norm = self.layer_norm(x)
-        q = self.query(x_norm).view(x.size(0), x.size(1), self.num_heads, self.head_dim).transpose(1, 2)
-        k = self.key(context).view(context.size(0), context.size(1), self.num_heads, self.head_dim).transpose(1, 2)
-        v = self.value(context).view(context.size(0), context.size(1), self.num_heads, self.head_dim).transpose(1, 2)
-        scores = torch.matmul(q, k.transpose(-2, -1)) / (self.head_dim ** 0.5)
-        attention = F.softmax(scores, dim=-1)
-        weighted_avg = torch.matmul(attention, v).transpose(1, 2).reshape(x.size(0), x.size(1), -1)
-        return (self.out(weighted_avg).to(orig_dtype) + residual)
+def compute_distillation_loss(student_logits, teacher_logits, teacher_labels, temperature):
+    common_len = min(student_logits.shape[1], teacher_logits.shape[1])
+    student_logits_aligned = student_logits[:, :common_len]
+    teacher_logits_aligned = teacher_logits[:, :common_len]
+    teacher_labels_aligned = teacher_labels[:, :common_len]
+    mask = (teacher_labels_aligned != -100)
+    student_log_probs = F.log_softmax(student_logits_aligned / temperature, dim=-1)
+    teacher_probs = F.softmax(teacher_logits_aligned / temperature, dim=-1)
+    kl_div = F.kl_div(student_log_probs, teacher_probs, reduction='none').sum(-1)
+    masked_kl = kl_div.where(mask, torch.tensor(0.0, device=kl_div.device))
+    loss = (masked_kl.sum() / mask.sum()) * (temperature ** 2)
+    return loss
 
-class TrainableEnhancer(nn.Module):
-    def __init__(self, uem_path: str, uem_tokenizer, llm_student, llm_teacher, llm_tokenizer):
-        super().__init__()
-        self.llm_student, self.llm_teacher, self.llm_tokenizer, self.uem_tokenizer = llm_student, llm_teacher, llm_tokenizer, uem_tokenizer
-        self.uem = AutoModel.from_pretrained(uem_path)
-        hidden_size = self.llm_student.config.hidden_size
-        self.cross_attention = CrossAttentionLayer(hidden_size)
-        self.projection_layer = nn.Sequential(nn.Linear(self.uem.config.hidden_size, self.uem.config.hidden_size * 4), nn.GELU(),
-                                              nn.Linear(self.uem.config.hidden_size * 4, hidden_size))
-
-    @torch.no_grad()
-    def compute_teacher_outputs(self, questions_asked: List[str], original_texts: List[str]) -> Dict[str, torch.Tensor]:
-        prompts = []
-        for q, o in zip(questions_asked, original_texts):
-            user_prompt = REDDIT_PROMPT_USER.format(question_asked=q, user_response=o)
-            conv = [{"role": "system", "content": REDDIT_PROMPT_SYSTEM}, {"role": "user", "content": user_prompt}]
-            prompts.append(self.llm_tokenizer.apply_chat_template(conv, tokenize=False, add_generation_prompt=True))
-        inputs = self.llm_tokenizer(prompts, return_tensors="pt", padding=True).to(self.llm_teacher.device)
-        outputs = self.llm_teacher(**inputs)
-        return {"logits": outputs.logits.detach(), "input_ids": inputs.input_ids}
-
-    def forward(self, loss_description_sentences: List[str], questions_asked: List[str],
-                anonymized_texts: List[str], original_texts: List[str]) -> torch.Tensor:
-        # 1. 教师模型处理 (更高效)
-        teacher_info = self.compute_teacher_outputs(questions_asked, original_texts)
-        teacher_logits = teacher_info["logits"]
-        teacher_input_ids = teacher_info["input_ids"]
-
-        # 2. 增强信息提取 (UEM)
-        with autocast(enabled=self.uem.device.type == 'cuda'):
-            uem_inputs = self.uem_tokenizer(loss_description_sentences, return_tensors="pt", padding=True, truncation=True, max_length=128).to(self.uem.device)
-            uem_outputs = self.uem(**uem_inputs)
-            last_hidden_state = uem_outputs.last_hidden_state
-            attention_mask = uem_inputs['attention_mask']
-            mask_expanded = attention_mask.unsqueeze(-1).expand(last_hidden_state.size()).float()
-            sum_embeddings = torch.sum(last_hidden_state * mask_expanded, 1)
-            sum_mask = torch.clamp(mask_expanded.sum(1), min=1e-9)
-            uem_representation = sum_embeddings / sum_mask
-            prefix_context = self.projection_layer(uem_representation).unsqueeze(1)
-        prefix_context = prefix_context.to(self.llm_student.device, dtype=torch.bfloat16)
-
-        # 3. 精准构建学生输入
-        embedding_layer = self.llm_student.get_input_embeddings()
-        batch_student_embeds = []
-        for q, a_text in zip(questions_asked, anonymized_texts):
-            system_conv = [{"role": "system", "content": REDDIT_PROMPT_SYSTEM}]
-            user_conv = [{"role": "user", "content": REDDIT_PROMPT_USER.format(question_asked=q, user_response=a_text)}]
-            
-            system_ids = self.llm_tokenizer(self.llm_tokenizer.apply_chat_template(system_conv, tokenize=False), return_tensors="pt").input_ids.to(self.llm_student.device)
-            user_ids = self.llm_tokenizer(self.llm_tokenizer.apply_chat_template(user_conv, tokenize=False, add_generation_prompt=False).replace(self.llm_tokenizer.bos_token, ""), return_tensors="pt").input_ids.to(self.llm_student.device)
-            assistant_ids = self.llm_tokenizer(self.llm_tokenizer.apply_chat_template([{"role": "assistant", "content": ""}], tokenize=False, add_generation_prompt=False).replace(self.llm_tokenizer.bos_token, ""), return_tensors="pt").input_ids.to(self.llm_student.device)
-
-            system_embeds = embedding_layer(system_ids)
-            user_embeds = embedding_layer(user_ids)
-            assistant_embeds = embedding_layer(assistant_ids)
-
-            enhanced_user_embeds = self.cross_attention(user_embeds, prefix_context)
-            
-            combined = torch.cat([system_embeds, enhanced_user_embeds, assistant_embeds], dim=1)
-            batch_student_embeds.append(combined)
-        
-        # 对齐批次中的长度
-        max_len = max(e.shape[1] for e in batch_student_embeds)
-        padded_embeds = []
-        attention_masks = []
-        for embeds in batch_student_embeds:
-            pad_len = max_len - embeds.shape[1]
-            padded_embeds.append(F.pad(embeds, (0, 0, pad_len, 0))) # Pad on the left
-            attention_masks.append(F.pad(torch.ones_like(embeds[0, :, 0]), (pad_len, 0), value=0))
-
-        student_inputs_embeds = torch.cat(padded_embeds, dim=0)
-        student_attention_mask = torch.stack(attention_masks, dim=0)
-
-        # 4. 学生模型前向传播
-        student_outputs = self.llm_student(inputs_embeds=student_inputs_embeds, attention_mask=student_attention_mask)
-        student_logits = student_outputs.logits
-
-        # 5. 序列级KL散度损失
-        teacher_labels = teacher_input_ids.clone()
-        teacher_labels[teacher_labels == self.llm_tokenizer.pad_token_id] = -100 # Ignore pad tokens in loss
-        
-        student_labels = torch.argmax(student_logits, dim=-1) # Just for length alignment, not used in loss
-        
-        # 对齐 logits 和 labels
-        common_len = min(student_logits.shape[1], teacher_logits.shape[1])
-        student_logits_aligned = student_logits[:, :common_len]
-        teacher_logits_aligned = teacher_logits[:, :common_len]
-        teacher_labels_aligned = teacher_labels[:, :common_len]
-
-        # 计算有效的 token mask
-        mask = (teacher_labels_aligned != -100)
-
-        student_log_probs = F.log_softmax(student_logits_aligned / DISTILLATION_TEMP, dim=-1)
-        teacher_probs = F.softmax(teacher_logits_aligned / DISTILLATION_TEMP, dim=-1)
-
-        kl_div = F.kl_div(student_log_probs, teacher_probs, reduction='none').sum(-1)
-        masked_kl = kl_div.where(mask, torch.tensor(0.0).to(kl_div.device))
-        
-        loss = (masked_kl.sum() / mask.sum()) * (DISTILLATION_TEMP ** 2)
-        return loss
-
-def evaluate(model, data_loader):
-    model.eval()
+def evaluate(uem_model, student_model, data_loader, llm_teacher, llm_tokenizer):
+    uem_model.eval()
+    student_model.eval()
     total_loss = 0
+    valid_batches = 0
+    
     with torch.no_grad():
         for batch in tqdm(data_loader, desc="Validating"):
-            loss = model(**batch) # 直接传递整个batch
-            total_loss += loss.item()
-    return total_loss / len(data_loader)
+            try:
+                teacher_prompts = []
+                for q, o in zip(batch["questions_asked"], batch["original_texts"]):
+                    user_prompt = REDDIT_PROMPT_USER.format(question_asked=q, user_response=o)
+                    conv = [{"role": "system", "content": REDDIT_PROMPT_SYSTEM}, {"role": "user", "content": user_prompt}]
+                    teacher_prompts.append(llm_tokenizer.apply_chat_template(conv, tokenize=False, add_generation_prompt=True))
+                teacher_inputs = llm_tokenizer(teacher_prompts, return_tensors="pt", padding=True, truncation=True, max_length=1024).to(llm_teacher.device)
+                teacher_outputs = llm_teacher(**teacher_inputs)
+                teacher_logits = teacher_outputs.logits.detach()
+                teacher_labels = teacher_inputs.input_ids.clone()
+                teacher_labels[teacher_labels == llm_tokenizer.pad_token_id] = -100
+
+                context_vector = uem_model(batch['loss_description_sentences']).to(student_model.device)
+                student_prompts = []
+                for q, a in zip(batch["questions_asked"], batch["anonymized_texts"]):
+                     user_prompt = REDDIT_PROMPT_USER.format(question_asked=q, user_response=a)
+                     conv = [{"role": "system", "content": REDDIT_PROMPT_SYSTEM}, {"role": "user", "content": user_prompt}]
+                     student_prompts.append(llm_tokenizer.apply_chat_template(conv, tokenize=False, add_generation_prompt=True))
+                student_inputs = llm_tokenizer(student_prompts, return_tensors="pt", padding=True, truncation=True, max_length=1024).to(student_model.device)
+                student_outputs = student_model(**student_inputs, context=context_vector)
+                student_logits = student_outputs.logits
+                loss = compute_distillation_loss(student_logits, teacher_logits, teacher_labels, DISTILLATION_TEMP)
+                
+                if not torch.isnan(loss):
+                    total_loss += loss.item()
+                    valid_batches += 1
+            except Exception as e:
+                print(f"Error in validation: {e}")
+                continue
+                
+    return total_loss / max(valid_batches, 1)
 
 def main():
     os.makedirs(CKPT_DIR, exist_ok=True)
     print(f"Devices: UEM@{UEM_DEVICE}, Student@{LLM_DEVICE_STUDENT}, Teacher@{LLM_DEVICE_TEACHER}")
 
-    print("Loading Frozen Teacher LLM...")
-    llm_teacher, llm_tokenizer = load_frozen_llm(LLM_MODEL_PATH, LLM_DEVICE_TEACHER)
+    print("Loading Frozen Teacher LLM and Tokenizer...")
+    llm_teacher = AutoModelForCausalLM.from_pretrained(LLM_MODEL_PATH, torch_dtype=torch.bfloat16).to(LLM_DEVICE_TEACHER)
     llm_teacher.eval()
-    for param in llm_teacher.parameters(): param.requires_grad = False
+    for param in llm_teacher.parameters(): 
+        param.requires_grad = False
+    llm_tokenizer = AutoTokenizer.from_pretrained(LLM_MODEL_PATH)
+    if llm_tokenizer.pad_token is None:
+        llm_tokenizer.pad_token = llm_tokenizer.eos_token
+    print("Teacher LLM and Tokenizer loaded.")
 
-    print("Loading Student Base LLM for LoRA...")
-    llm_student_base, _ = load_frozen_llm(LLM_MODEL_PATH, LLM_DEVICE_STUDENT)
-    lora_config = LoraConfig(r=16, lora_alpha=32, target_modules=["q_proj", "k_proj", "v_proj", "o_proj"], lora_dropout=0.05, bias="none", task_type="CAUSAL_LM")
-    llm_student_peft = get_peft_model(llm_student_base, lora_config)
+    print("Loading custom PAUE_LlamaForCausalLM for Student...")
+    llm_student = PAUE_LlamaForCausalLM.from_pretrained(LLM_MODEL_PATH, torch_dtype=torch.bfloat16)
+    
+    # 🔴 关键：在应用 LoRA 之前彻底禁用 gradient checkpointing
+    llm_student.config.use_cache = False
+    llm_student.supports_gradient_checkpointing = False
+    llm_student.gradient_checkpointing = False
+    if hasattr(llm_student, 'enable_input_require_grads'):
+        llm_student.enable_input_require_grads()
+    
+    print("Configuring LoRA for the Student LLM...")
+    lora_config = LoraConfig(
+        r=16, 
+        lora_alpha=32, 
+        target_modules=["q_proj", "k_proj", "v_proj", "o_proj"], 
+        lora_dropout=0.05, 
+        bias="none", 
+        task_type="CAUSAL_LM"
+    )
+    llm_student_peft = get_peft_model(llm_student, lora_config)
+    llm_student_peft.to(LLM_DEVICE_STUDENT)
+    
+    # 🔴 应用 LoRA 后再次确认禁用 gradient checkpointing
+    llm_student_peft.base_model.gradient_checkpointing = False
+    if hasattr(llm_student_peft.base_model.model, 'gradient_checkpointing'):
+        llm_student_peft.base_model.model.gradient_checkpointing = False
+    
     llm_student_peft.print_trainable_parameters()
-    llm_student_peft.gradient_checkpointing_enable()
 
     uem_tokenizer = AutoTokenizer.from_pretrained(UEM_MODEL_PATH, use_fast=False)
-    
+    uem_model = TrainableEnhancer(UEM_MODEL_PATH, uem_tokenizer, llm_student.config.hidden_size)
+    uem_model.to(UEM_DEVICE)
+
     train_dataset, val_dataset = GetDataset(TRAIN_DATA_FILE), GetDataset(VAL_DATA_FILE)
     collate_fn = lambda batch: {k: [d[k] for d in batch] for k in batch[0]}
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_fn)
     val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate_fn)
 
-    model = TrainableEnhancer(UEM_MODEL_PATH, uem_tokenizer, llm_student_peft, llm_teacher, llm_tokenizer)
-    model.uem.to(UEM_DEVICE)
-    model.projection_layer.to(UEM_DEVICE)
-    model.cross_attention.to(LLM_DEVICE_STUDENT)
-
-    trainable_params = [p for p in model.parameters() if p.requires_grad]
+    trainable_params = list(uem_model.parameters()) + list(filter(lambda p: p.requires_grad, llm_student_peft.parameters()))
     optimizer = AdamW(trainable_params, lr=LEARNING_RATE, weight_decay=0.01)
-    scaler = GradScaler()
+    # 🔴 移除 GradScaler（bfloat16 不需要）
     best_val_loss = float('inf')
 
     print("\n--- Starting Training ---")
     for epoch in range(EPOCHS):
         print(f"\nEpoch {epoch + 1}/{EPOCHS}")
-        model.train()
+        uem_model.train()
+        llm_student_peft.train()
         total_train_loss = 0
+        valid_batches = 0
+
         for batch in tqdm(train_loader, desc=f"Training"):
             optimizer.zero_grad(set_to_none=True)
-            with autocast(dtype=torch.bfloat16):
-                loss = model(**batch)
+
+            with torch.no_grad():
+                teacher_prompts = []
+                for q, o in zip(batch["questions_asked"], batch["original_texts"]):
+                    user_prompt = REDDIT_PROMPT_USER.format(question_asked=q, user_response=o)
+                    conv = [{"role": "system", "content": REDDIT_PROMPT_SYSTEM}, {"role": "user", "content": user_prompt}]
+                    teacher_prompts.append(llm_tokenizer.apply_chat_template(conv, tokenize=False, add_generation_prompt=True))
+                teacher_inputs = llm_tokenizer(teacher_prompts, return_tensors="pt", padding=True, truncation=True, max_length=1024).to(llm_teacher.device)
+                teacher_outputs = llm_teacher(**teacher_inputs)
+                teacher_logits = teacher_outputs.logits.detach()
+                teacher_labels = teacher_inputs.input_ids.clone()
+                teacher_labels[teacher_labels == llm_tokenizer.pad_token_id] = -100
+
+            # 🔴 使用 autocast 但不用 GradScaler
+            with torch.amp.autocast(device_type=LLM_DEVICE_STUDENT.split(':')[0], dtype=torch.bfloat16):
+                context_vector = uem_model(batch['loss_description_sentences']).to(llm_student_peft.device)
+                student_prompts = []
+                for q, a in zip(batch["questions_asked"], batch["anonymized_texts"]):
+                     user_prompt = REDDIT_PROMPT_USER.format(question_asked=q, user_response=a)
+                     conv = [{"role": "system", "content": REDDIT_PROMPT_SYSTEM}, {"role": "user", "content": user_prompt}]
+                     student_prompts.append(llm_tokenizer.apply_chat_template(conv, tokenize=False, add_generation_prompt=True))
+                student_inputs = llm_tokenizer(student_prompts, return_tensors="pt", padding=True, truncation=True, max_length=1024).to(llm_student_peft.device)
+                student_outputs = llm_student_peft(**student_inputs, context=context_vector)
+                student_logits = student_outputs.logits
+                loss = compute_distillation_loss(student_logits, teacher_logits, teacher_labels, DISTILLATION_TEMP)
+
             if torch.isnan(loss):
                 print("Warning: Loss is NaN, skipping."); continue
-            scaler.scale(loss).backward()
-            scaler.unscale_(optimizer)
+            
+            # 🔴 直接 backward，不使用 scaler
+            loss.backward()
             torch.nn.utils.clip_grad_norm_(trainable_params, max_norm=CLIPPING_NORM)
-            scaler.step(optimizer)
-            scaler.update()
+            optimizer.step()
             total_train_loss += loss.item()
+            valid_batches += 1
 
-        avg_train_loss = total_train_loss / len(train_loader)
-        avg_val_loss = evaluate(model, val_loader)
+        avg_train_loss = total_train_loss / max(valid_batches, 1)
+        avg_val_loss = evaluate(uem_model, llm_student_peft, val_loader, llm_teacher, llm_tokenizer)
         print(f"Epoch {epoch + 1} | Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f}")
 
         if avg_val_loss < best_val_loss:
             best_val_loss = avg_val_loss
-            print(f"New best val loss: {best_val_loss:.4f}. Saving model.")
-            model.llm_student.save_pretrained(os.path.join(CKPT_DIR, "student_lora_adapter"))
-            torch.save(model.uem.state_dict(), os.path.join(CKPT_DIR, "uem.pth"))
-            torch.save(model.projection_layer.state_dict(), os.path.join(CKPT_DIR, "projection_layer.pth"))
-            torch.save(model.cross_attention.state_dict(), os.path.join(CKPT_DIR, "cross_attention.pth"))
+            print(f"New best val loss: {best_val_loss:.4f}. Saving models.")
+            llm_student_peft.save_pretrained(os.path.join(CKPT_DIR, "student_lora_adapter"))
+            torch.save(uem_model.state_dict(), os.path.join(CKPT_DIR, "uem_enhancer.pth"))
+            
+            adapter_state_dict = {}
+            for name, module in llm_student_peft.named_modules():
+                if isinstance(module, CrossAttentionAdapter):
+                    adapter_state_dict[name] = module.state_dict()
+            torch.save(adapter_state_dict, os.path.join(CKPT_DIR, "cross_attention_adapters.pth"))
         else:
             print(f"Val loss did not improve from {best_val_loss:.4f}.")
 
