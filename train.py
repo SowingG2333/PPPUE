@@ -7,10 +7,10 @@ from tqdm import tqdm
 from torch.utils.data import Dataset, DataLoader
 from torch.optim import AdamW
 from transformers import AutoModel, AutoTokenizer, AutoModelForCausalLM
-from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+from peft import LoraConfig, get_peft_model
 from typing import List, Dict, Tuple, Optional, Union
 from transformers.models.llama.modeling_llama import LlamaForCausalLM, LlamaModel, LlamaDecoderLayer
-from transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
+from transformers.modeling_outputs import CausalLMOutputWithPast
 
 # --- CONFIGURATION VARIABLES --- #
 LLM_MODEL_PATH = "/root/autodl-tmp/huggingface/hub/models--meta-llama--Meta-Llama-3-8B-Instruct/snapshots/8afb486c1db24fe5011ec46dfbe5b5dccdb575c2"
@@ -37,7 +37,7 @@ Your response MUST be a single occupation name, without any additional text or e
 Your answer:
 """
 
-# --- 1. 交叉注意力适配器模块 ---
+# --- 交叉注意力适配器模块 ---
 class CrossAttentionAdapter(nn.Module):
     def __init__(self, hidden_size, context_size, num_heads=8):
         super().__init__()
@@ -63,15 +63,15 @@ class CrossAttentionAdapter(nn.Module):
         output = self.output_proj(attention_output)
         return self.layer_norm(output + residual)
 
-# --- 2. 自定义解码器层 ---
-class PAUE_LlamaDecoderLayer(LlamaDecoderLayer):
+# --- 自定义解码器层 ---
+class PerLlamaDecoderLayer(LlamaDecoderLayer):
     def __init__(self, config, layer_idx: int):
         super().__init__(config, layer_idx)
         self.cross_attention_adapter = CrossAttentionAdapter(
             hidden_size=config.hidden_size,
             context_size=config.hidden_size
         )
-        # 强制禁用 gradient checkpointing
+        # 禁用 gradient checkpointing
         self.gradient_checkpointing = False
 
     def forward(
@@ -96,6 +96,7 @@ class PAUE_LlamaDecoderLayer(LlamaDecoderLayer):
             **kwargs,
         )
         
+        # 分离当前层的 hidden_states 和其他输出
         if isinstance(raw_outputs, tuple):
             current_hidden_states = raw_outputs[0]
             other_outputs = raw_outputs[1:]
@@ -104,7 +105,7 @@ class PAUE_LlamaDecoderLayer(LlamaDecoderLayer):
             other_outputs = ()
 
         # 从层属性获取 context
-        context = getattr(self, '_paue_context', None)
+        context = getattr(self, '_per_context', None)
         if context is not None:
             enhanced_hidden_states = self.cross_attention_adapter(
                 current_hidden_states, 
@@ -115,14 +116,14 @@ class PAUE_LlamaDecoderLayer(LlamaDecoderLayer):
         
         return (enhanced_hidden_states,) + other_outputs
 
-# --- 3. 自定义 Llama 模型 (移除 cache_position 参数) ---
-class PAUE_LlamaModel(LlamaModel):
+# --- 3. 自定义 Llama 模型 ---
+class PerLlamaModel(LlamaModel):
     def __init__(self, config):
         super().__init__(config)
         self.layers = nn.ModuleList([
-            PAUE_LlamaDecoderLayer(config, i) for i in range(config.num_hidden_layers)
+            PerLlamaDecoderLayer(config, i) for i in range(config.num_hidden_layers)
         ])
-        # 强制禁用 gradient checkpointing
+        # 禁用 gradient checkpointing
         self.gradient_checkpointing = False
         self._gradient_checkpointing_func = None
 
@@ -137,14 +138,14 @@ class PAUE_LlamaModel(LlamaModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-        # 🔴 移除 cache_position 参数
+        # 移除 cache_position 参数
         **kwargs,
     ):
         # 提取 context 并分发到所有层
         context = kwargs.pop("context", None)
         if context is not None:
             for layer in self.layers:
-                layer._paue_context = context
+                layer._per_context = context
         
         # 调用父类 forward (不传递 cache_position)
         outputs = super().forward(
@@ -163,15 +164,15 @@ class PAUE_LlamaModel(LlamaModel):
         # 清理 context
         if context is not None:
             for layer in self.layers:
-                layer._paue_context = None
+                layer._per_context = None
         
         return outputs
 
-# --- 4. 顶层因果语言模型 ---
-class PAUE_LlamaForCausalLM(LlamaForCausalLM):
+# --- 顶层因果语言模型 ---
+class PerLlamaForCausalLM(LlamaForCausalLM):
     def __init__(self, config):
         super().__init__(config)
-        self.model = PAUE_LlamaModel(config)
+        self.model = PerLlamaModel(config)
         self.supports_gradient_checkpointing = False
 
     def forward(
@@ -340,9 +341,9 @@ def main():
     print("Teacher LLM and Tokenizer loaded.")
 
     print("Loading custom PAUE_LlamaForCausalLM for Student...")
-    llm_student = PAUE_LlamaForCausalLM.from_pretrained(LLM_MODEL_PATH, torch_dtype=torch.bfloat16)
+    llm_student = PerLlamaForCausalLM.from_pretrained(LLM_MODEL_PATH, torch_dtype=torch.bfloat16)
     
-    # 🔴 关键：在应用 LoRA 之前彻底禁用 gradient checkpointing
+    # 在应用 LoRA 之前彻底禁用 gradient checkpointing
     llm_student.config.use_cache = False
     llm_student.supports_gradient_checkpointing = False
     llm_student.gradient_checkpointing = False
@@ -361,7 +362,7 @@ def main():
     llm_student_peft = get_peft_model(llm_student, lora_config)
     llm_student_peft.to(LLM_DEVICE_STUDENT)
     
-    # 🔴 应用 LoRA 后再次确认禁用 gradient checkpointing
+    # 应用 LoRA 后再次确认禁用 gradient checkpointing
     llm_student_peft.base_model.gradient_checkpointing = False
     if hasattr(llm_student_peft.base_model.model, 'gradient_checkpointing'):
         llm_student_peft.base_model.model.gradient_checkpointing = False
@@ -379,7 +380,7 @@ def main():
 
     trainable_params = list(uem_model.parameters()) + list(filter(lambda p: p.requires_grad, llm_student_peft.parameters()))
     optimizer = AdamW(trainable_params, lr=LEARNING_RATE, weight_decay=0.01)
-    # 🔴 移除 GradScaler（bfloat16 不需要）
+    # 移除 GradScaler，bfloat16 不需要
     best_val_loss = float('inf')
 
     print("\n--- Starting Training ---")
@@ -405,7 +406,7 @@ def main():
                 teacher_labels = teacher_inputs.input_ids.clone()
                 teacher_labels[teacher_labels == llm_tokenizer.pad_token_id] = -100
 
-            # 🔴 使用 autocast 但不用 GradScaler
+            # 使用 autocast 但不用 GradScaler
             with torch.amp.autocast(device_type=LLM_DEVICE_STUDENT.split(':')[0], dtype=torch.bfloat16):
                 context_vector = uem_model(batch['loss_description_sentences']).to(llm_student_peft.device)
                 student_prompts = []
@@ -421,7 +422,7 @@ def main():
             if torch.isnan(loss):
                 print("Warning: Loss is NaN, skipping."); continue
             
-            # 🔴 直接 backward，不使用 scaler
+            # 直接 backward，不使用 scaler
             loss.backward()
             torch.nn.utils.clip_grad_norm_(trainable_params, max_norm=CLIPPING_NORM)
             optimizer.step()
