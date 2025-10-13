@@ -5,22 +5,23 @@ import torch.nn.functional as F
 from tqdm import tqdm
 from torch.utils.data import Dataset, DataLoader
 from torch.optim import AdamW
+from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.cuda.amp import autocast, GradScaler
 from transformers import AutoModel, AutoTokenizer, XLMRobertaTokenizer
+from peft import LoraConfig, get_peft_model, TaskType  # 添加 PEFT 导入
 from typing import List, Dict, Tuple
 
 # --- CONFIGURATION VARIABLES --- #
-# 模型和数据路径
 LLM_MODEL_PATH = "/root/autodl-tmp/huggingface/hub/models--meta-llama--Meta-Llama-3-8B-Instruct/snapshots/8afb486c1db24fe5011ec46dfbe5b5dccdb575c2"
 UEM_MODEL_PATH = "/root/autodl-tmp/huggingface/hub/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09"
 
-# --- 训练和验证文件 ---
-TRAIN_DATA_FILE = "/root/autodl-tmp/PPPUE/benchmark/reprocess/train/seed_42/train_split.jsonl"  # 训练数据
-VAL_DATA_FILE = "/root/autodl-tmp/PPPUE/benchmark/reprocess/train/seed_42/val_split.jsonl"   # 独立的验证数据
-CKPT_DIR = "/root/autodl-tmp/PPPUE/ckpt/prefix_I"
+TRAIN_DATA_FILE = "/root/autodl-tmp/PPPUE/benchmark/reprocess/train/seed_42/train_split.jsonl"
+VAL_DATA_FILE = "/root/autodl-tmp/PPPUE/benchmark/reprocess/train/seed_42/val_split.jsonl"
+CKPT_DIR = "/root/autodl-tmp/PPPUE/ckpt/prefix_lora"  # 修改输出目录名
 
 # 训练超参数
-LEARNING_RATE = 1e-6
+LEARNING_RATE_UEM = 1e-5  # UEM 和投影层的学习率
+LEARNING_RATE_LORA = 1e-4  # LoRA 的学习率
 EPOCHS = 100
 BATCH_SIZE = 1
 PREFIX_LENGTH = 5
@@ -28,7 +29,13 @@ UEM_DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 LLM_DEVICE = "cuda:1" if torch.cuda.is_available() and torch.cuda.device_count() > 1 else UEM_DEVICE
 CLIPPING_NORM = 1.0
 DISTILLATION_TEMP = 1.0
-MAX_GEN_TOKENS = 10 # 教师模型生成序列的最大长度
+MAX_GEN_TOKENS = 10
+
+# LoRA 配置
+LORA_R = 16  # LoRA rank
+LORA_ALPHA = 32  # LoRA alpha
+LORA_DROPOUT = 0.1  # LoRA dropout
+LORA_TARGET_MODULES = ["q_proj", "k_proj", "v_proj", "o_proj"]  # 目标模块
 
 # ----- Reddit 系统提示词 -----
 REDDIT_PROMPT_SYSTEM = """
@@ -47,17 +54,14 @@ Your response MUST be a single occupation name, without any additional text or e
 """
 
 class GetDataset(Dataset):
-    """数据集类，加载 JSONL 文件"""
-    # 初始化数据集
+    """数据集类,加载 JSONL 文件"""
     def __init__(self, jsonl_path: str):
         self.data = [json.loads(line) for line in open(jsonl_path, 'r')]
         print(f"Loaded {len(self.data)} samples from {jsonl_path}")
 
-    # 获取数据集长度
     def __len__(self):
         return len(self.data)
 
-    # 获取单个数据项
     def __getitem__(self, idx) -> Dict:
         item = self.data[idx]
         return {
@@ -68,30 +72,29 @@ class GetDataset(Dataset):
         }
 
 class TrainableEnhancer(torch.nn.Module):
-    '''可训练的增强模型，结合 UEM 和冻结的 LLM'''
-    def __init__(self, uem_path: str, uem_tokenizer, llm_model, llm_tokenizer):
+    '''可训练的增强模型,结合 UEM 和独立的教师/学生 LLM'''
+    def __init__(self, uem_path: str, uem_tokenizer, llm_teacher, llm_student, llm_tokenizer):
         super().__init__()
-        self.llm_frozen = llm_model # 冻结的推理 LLM
-        self.llm_tokenizer = llm_tokenizer # 推理 LLM 的分词器
-        self.uem_tokenizer = uem_tokenizer # UEM 的分词器
-        self.uem = AutoModel.from_pretrained(uem_path) # 加载 UEM 模型
-        # 投影层, 将 UEM 输出映射到 LLM 的隐藏层维度
+        self.llm_teacher = llm_teacher  # 冻结的教师模型
+        self.llm_student = llm_student  # 带 LoRA 的学生模型
+        self.llm_tokenizer = llm_tokenizer
+        self.uem_tokenizer = uem_tokenizer
+        self.uem = AutoModel.from_pretrained(uem_path)
+        
+        # 投影层
         self.projection_layer = torch.nn.Sequential(
             torch.nn.Linear(self.uem.config.hidden_size, self.uem.config.hidden_size * 4),
-            torch.nn.GELU(), # 使用GELU非线性激活函数
-            torch.nn.Linear(self.uem.config.hidden_size * 4, self.llm_frozen.config.hidden_size * PREFIX_LENGTH)
+            torch.nn.GELU(),
+            torch.nn.Linear(self.uem.config.hidden_size * 4, self.llm_teacher.config.hidden_size * PREFIX_LENGTH)
         )
 
-        # 将推理 LLM 的参数冻结
-        for param in self.llm_frozen.parameters():
+        # 冻结教师模型
+        for param in self.llm_teacher.parameters():
             param.requires_grad = False
 
     @torch.no_grad()
     def get_teacher_logits(self, questions_asked: List[str], original_texts: List[str]) -> Tuple[torch.Tensor, torch.Tensor]:
-        """
-        辅助函数：在无梯度上下文中计算教师模型的 Logits (针对整个生成序列)。
-        MODIFIED: This function now generates a target sequence and returns logits for that entire sequence.
-        """
+        """使用教师模型生成目标序列和 logits"""
         user_response = original_texts[0]
         question_asked = questions_asked[0]
 
@@ -104,37 +107,28 @@ class TrainableEnhancer(torch.nn.Module):
             {"role": "user", "content": teacher_user_prompt}
         ]
         teacher_prompt = self.llm_tokenizer.apply_chat_template(teacher_conversation, tokenize=False, add_generation_prompt=True)
-        teacher_inputs = self.llm_tokenizer(teacher_prompt, return_tensors="pt").to(self.llm_frozen.device)
+        teacher_inputs = self.llm_tokenizer(teacher_prompt, return_tensors="pt").to(self.llm_teacher.device)
         
-        # 1. 生成教师模型的输出序列 (e.g., "Software", "Engineer")
-        generated_ids = self.llm_frozen.generate(
+        # 生成教师模型的输出序列
+        generated_ids = self.llm_teacher.generate(
             **teacher_inputs,
             max_new_tokens=MAX_GEN_TOKENS,
             pad_token_id=self.llm_tokenizer.eos_token_id
         )
-        # 提取生成的 token，排除输入部分
         target_ids = generated_ids[:, teacher_inputs.input_ids.shape[1]:]
 
-        # 如果生成了空的序列，则返回空结果以跳过该批次
         if target_ids.shape[1] == 0:
             return None, None
 
-        # 2. 将生成的序列与原始输入拼接，以获取每个生成 token 对应的 logits
+        # 获取完整序列的 logits
         full_input_ids = torch.cat([teacher_inputs.input_ids, target_ids], dim=1)
+        teacher_outputs = self.llm_teacher(input_ids=full_input_ids)
         
-        # 3. 再次进行前向传播以获取整个序列的 logits
-        teacher_outputs = self.llm_frozen(input_ids=full_input_ids)
-        
-        # 4. 提取与目标序列对应的 logits
-        # 我们需要从输入结束的位置开始，提取长度为 target_ids 长度的 logits
-        # Logits at position i are used to predict token i+1.
-        # So, we take logits from (input_len - 1) to (input_len + target_len - 2)
         start_pos = teacher_inputs.input_ids.shape[1] - 1
         end_pos = start_pos + target_ids.shape[1]
         teacher_logits = teacher_outputs.logits[:, start_pos:end_pos, :]
 
         return teacher_logits, target_ids
-
 
     def forward(self,
                 loss_description_sentences: List[str],
@@ -142,30 +136,27 @@ class TrainableEnhancer(torch.nn.Module):
                 anonymized_texts: List[str],
                 logits_teacher: torch.Tensor,
                 target_ids: torch.Tensor) -> torch.Tensor:
-        """
-        MODIFIED: This function now accepts target_ids and calculates loss over the entire sequence.
-        """
+        """学生模型前向传播(使用 LoRA 微调的模型)"""
         
-        # --- 学生流程: 使用前缀注入获取 Logits ---
-        # 1. 使用 UEM 和投影层生成前缀嵌入
+        # 1. 使用 UEM 生成前缀嵌入
         with autocast(enabled=self.uem.device.type == 'cuda'):
             uem_inputs = self.uem_tokenizer(loss_description_sentences, return_tensors="pt", padding=True, truncation=True, max_length=128).to(self.uem.device)
             uem_outputs = self.uem(**uem_inputs)
             sentence_representation = uem_outputs.last_hidden_state[:, 0, :]
             clean_prefix = self.projection_layer(sentence_representation)
 
-        clean_prefix = clean_prefix.view(-1, PREFIX_LENGTH, self.llm_frozen.config.hidden_size)
+        clean_prefix = clean_prefix.view(-1, PREFIX_LENGTH, self.llm_teacher.config.hidden_size)
 
         # 2. 裁剪前缀的 L2 范数
         original_norm = torch.linalg.norm(clean_prefix, dim=-1, keepdim=True)
         scale_factor = (CLIPPING_NORM / (original_norm + 1e-9)).clamp(max=1.0)
         clipped_prefix = clean_prefix * scale_factor
 
-        # 3. 将前缀嵌入移动到 LLM 的设备上
-        prefix_embeds = clipped_prefix.to(device=self.llm_frozen.device, dtype=self.llm_frozen.dtype)
+        # 3. 移动到学生模型设备
+        prefix_embeds = clipped_prefix.to(device=self.llm_student.device, dtype=self.llm_student.dtype)
 
-        # 4. 手动为聊天模板的每个部分构建嵌入
-        embedding_layer = self.llm_frozen.get_input_embeddings()
+        # 4. 构建学生模型输入嵌入
+        embedding_layer = self.llm_student.get_input_embeddings()
 
         student_user_prompt = REDDIT_PROMPT_USER.format(
             question_asked=questions_asked[0],
@@ -181,14 +172,12 @@ class TrainableEnhancer(torch.nn.Module):
         dummy_template = self.llm_tokenizer.apply_chat_template(dummy_conversation, tokenize=False, add_generation_prompt=False)
         assistant_start_part = full_template_with_dummy.replace(dummy_template, "")
 
-        # 5. 将每个文本部分转换为嵌入
-        system_embeds = embedding_layer(self.llm_tokenizer(system_part, return_tensors="pt").input_ids.to(self.llm_frozen.device))
-        user_start_embeds = embedding_layer(self.llm_tokenizer(user_start_part, return_tensors="pt").input_ids.to(self.llm_frozen.device))
-        user_content_embeds = embedding_layer(self.llm_tokenizer(user_content_part, return_tensors="pt").input_ids.to(self.llm_frozen.device))
-        assistant_start_embeds = embedding_layer(self.llm_tokenizer(assistant_start_part, return_tensors="pt").input_ids.to(self.llm_frozen.device))
-        
-        # MODIFIED: 6. Teacher Forcing - 将目标序列的嵌入也拼接进去
-        target_embeds = embedding_layer(target_ids)
+        # 5. 转换为嵌入
+        system_embeds = embedding_layer(self.llm_tokenizer(system_part, return_tensors="pt").input_ids.to(self.llm_student.device))
+        user_start_embeds = embedding_layer(self.llm_tokenizer(user_start_part, return_tensors="pt").input_ids.to(self.llm_student.device))
+        user_content_embeds = embedding_layer(self.llm_tokenizer(user_content_part, return_tensors="pt").input_ids.to(self.llm_student.device))
+        assistant_start_embeds = embedding_layer(self.llm_tokenizer(assistant_start_part, return_tensors="pt").input_ids.to(self.llm_student.device))
+        target_embeds = embedding_layer(target_ids.to(self.llm_student.device))
 
         combined_embeds = torch.cat([
             system_embeds,
@@ -196,31 +185,27 @@ class TrainableEnhancer(torch.nn.Module):
             prefix_embeds,
             user_content_embeds,
             assistant_start_embeds,
-            target_embeds # 将目标序列嵌入拼接到末尾
+            target_embeds
         ], dim=1)
 
-        # 7. 使用拼接好的嵌入进行前向传播
-        student_outputs = self.llm_frozen(inputs_embeds=combined_embeds)
+        # 6. 学生模型前向传播(带 LoRA)
+        student_outputs = self.llm_student(inputs_embeds=combined_embeds)
         
-        # MODIFIED: 8. 提取与目标序列对应的学生 logits
+        # 7. 提取学生 logits
         start_pos = combined_embeds.shape[1] - target_ids.shape[1] - 1
         end_pos = start_pos + target_ids.shape[1]
         logits_student = student_outputs.logits[:, start_pos:end_pos, :]
 
-        # --- 计算KL散度损失 ---
-        # 确保 logits_teacher 和 logits_student 形状一致
+        # 8. 计算 KL 散度损失
         if logits_teacher.shape != logits_student.shape:
-             # 如果形状不匹配，这通常意味着存在一个 bug，但为了鲁棒性，我们可以跳过这个批次
             print(f"Warning: Shape mismatch. Teacher: {logits_teacher.shape}, Student: {logits_student.shape}. Skipping batch.")
-            return torch.tensor(0.0, device=self.llm_frozen.device, requires_grad=True)
+            return torch.tensor(0.0, device=self.llm_student.device, requires_grad=True)
 
         logits_teacher = logits_teacher.to(logits_student.device)
 
-        # Reshape for KLDivLoss: (N, C) where N is batch*seq_len and C is vocab_size
         student_log_sm = F.log_softmax(logits_student / DISTILLATION_TEMP, dim=-1)
         teacher_sm = F.softmax(logits_teacher / DISTILLATION_TEMP, dim=-1)
         
-        # 将序列维度合并到批次维度中，以便 kl_div 正确计算 batchmean
         loss = F.kl_div(
             student_log_sm.view(-1, student_log_sm.size(-1)),
             teacher_sm.view(-1, teacher_sm.size(-1)),
@@ -232,24 +217,21 @@ class TrainableEnhancer(torch.nn.Module):
 from _utils.model import load_frozen_llm
 
 def evaluate(model, data_loader):
-    """在给定的数据集上评估模型"""
+    """评估模型"""
     model.eval()
     total_loss = 0
     num_samples = 0
 
     with torch.no_grad():
         for batch in tqdm(data_loader, desc="Validating"):
-            # MODIFIED: 获取教师 logits 和 target_ids
             logits_teacher, target_ids = model.get_teacher_logits(
                 questions_asked=batch['question_asked'],
                 original_texts=batch['original_text']
             )
             
-            # 如果教师没有生成任何 token，跳过这个样本
             if logits_teacher is None:
                 continue
                 
-            # MODIFIED: 传入 target_ids
             loss = model(
                 loss_description_sentences=batch['loss_description_sentence'],
                 questions_asked=batch['question_asked'],
@@ -267,13 +249,38 @@ def evaluate(model, data_loader):
     return avg_loss
 
 def main():
-    """主函数，用于协调训练和验证流程"""
+    """主函数"""
     os.makedirs(CKPT_DIR, exist_ok=True)
 
     print(f"Using UEM_DEVICE: {UEM_DEVICE} and LLM_DEVICE: {LLM_DEVICE}")
     print(f"Checkpoints will be saved to: {CKPT_DIR}")
     
-    llm_frozen, llm_tokenizer = load_frozen_llm(LLM_MODEL_PATH, LLM_DEVICE)
+    # 加载教师模型(冻结)
+    llm_teacher, llm_tokenizer = load_frozen_llm(LLM_MODEL_PATH, LLM_DEVICE)
+    
+    # 加载学生模型并应用 LoRA
+    from transformers import AutoModelForCausalLM
+    print("Loading student model with LoRA...")
+    llm_student = AutoModelForCausalLM.from_pretrained(
+        LLM_MODEL_PATH,
+        torch_dtype=torch.bfloat16,
+        device_map={"": LLM_DEVICE}
+    )
+    
+    # 配置 LoRA
+    lora_config = LoraConfig(
+        task_type=TaskType.CAUSAL_LM,
+        r=LORA_R,
+        lora_alpha=LORA_ALPHA,
+        lora_dropout=LORA_DROPOUT,
+        target_modules=LORA_TARGET_MODULES,
+        bias="none"
+    )
+    
+    # 应用 LoRA
+    llm_student = get_peft_model(llm_student, lora_config)
+    llm_student.print_trainable_parameters()
+    
     try:
         uem_tokenizer = AutoTokenizer.from_pretrained(UEM_MODEL_PATH, use_fast=False)
     except ValueError:
@@ -295,87 +302,86 @@ def main():
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_fn)
     val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate_fn)
 
-    model = TrainableEnhancer(UEM_MODEL_PATH, uem_tokenizer, llm_frozen, llm_tokenizer)
+    model = TrainableEnhancer(UEM_MODEL_PATH, uem_tokenizer, llm_teacher, llm_student, llm_tokenizer)
     model.uem.to(UEM_DEVICE)
     model.projection_layer.to(UEM_DEVICE)
     
-    optimizer = AdamW(model.parameters(), lr=LEARNING_RATE)
+    # 优化器:为不同模块设置不同的学习率
+    optimizer = AdamW([
+        {
+            'params': model.uem.parameters(),
+            'lr': LEARNING_RATE_UEM,
+            'weight_decay': 0.01
+        },
+        {
+            'params': model.projection_layer.parameters(),
+            'lr': LEARNING_RATE_UEM,
+            'weight_decay': 0.01
+        },
+        {
+            'params': model.llm_student.parameters(),
+            'lr': LEARNING_RATE_LORA,
+            'weight_decay': 0.01
+        }
+    ])
+    
+    scheduler = CosineAnnealingLR(optimizer, T_max=EPOCHS, eta_min=1e-7)
     scaler = GradScaler()
     best_val_loss = float('inf')
 
-    print("\n--- Starting Knowledge Distillation Training (Sequence-level) ---")
+    print(f"\n--- Starting Knowledge Distillation Training with LoRA ---")
+    print(f"UEM Learning Rate: {LEARNING_RATE_UEM}")
+    print(f"LoRA Learning Rate: {LEARNING_RATE_LORA}")
+    
     for epoch in range(EPOCHS):
-        print(f"\nEpoch {epoch + 1}/{EPOCHS}")
-        
         model.train()
         total_train_loss = 0
         num_samples_trained = 0
-        
-        for i, batch in enumerate(tqdm(train_loader, desc=f"Training Epoch {epoch + 1}")):
-            optimizer.zero_grad(set_to_none=True)
-            
-            # MODIFIED: 1. 获取教师 logits 和 target_ids
+
+        for batch in tqdm(train_loader, desc=f"Training Epoch {epoch + 1}"):
             logits_teacher, target_ids = model.get_teacher_logits(
                 questions_asked=batch['question_asked'],
                 original_texts=batch['original_text']
             )
-
-            # 如果教师没有生成任何 token，跳过这个样本
+            
             if logits_teacher is None:
                 continue
-
-            # 2. 学生模型前向传播和损失计算
-            with autocast():
-                # MODIFIED: 传入 target_ids
-                loss = model(
-                    loss_description_sentences=batch['loss_description_sentence'],
-                    questions_asked=batch['question_asked'],
-                    anonymized_texts=batch['anonymized_text'],
-                    logits_teacher=logits_teacher,
-                    target_ids=target_ids
-                )
-
-            if torch.isnan(loss):
-                print("Warning: Loss is NaN before scaling, skipping update.")
-                del logits_teacher, target_ids
-                torch.cuda.empty_cache()
-                continue
-
-            loss_value = loss.item()
-            scaler.scale(loss).backward()
+                
+            optimizer.zero_grad()
+            loss = model(
+                loss_description_sentences=batch['loss_description_sentence'],
+                questions_asked=batch['question_asked'],
+                anonymized_texts=batch['anonymized_text'],
+                logits_teacher=logits_teacher,
+                target_ids=target_ids
+            )
+            total_train_loss += loss.item()
+            num_samples_trained += 1
             
+            # 梯度缩放与反向传播
+            scaler.scale(loss).backward()
             scaler.unscale_(optimizer)
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=CLIPPING_NORM)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), CLIPPING_NORM)
             scaler.step(optimizer)
             scaler.update()
             
-            total_train_loss += loss_value
-            num_samples_trained += 1
+            del logits_teacher, target_ids
+            torch.cuda.empty_cache()
 
-            del logits_teacher, target_ids, loss
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-        
         avg_train_loss = total_train_loss / num_samples_trained if num_samples_trained > 0 else 0
-        
         val_loss = evaluate(model, val_loader)
         
+        # 更新学习率
+        scheduler.step()
+        
         print(f"Epoch {epoch + 1} | Train Loss: {avg_train_loss:.6f} | Val Loss: {val_loss:.6f}")
+        print(f"Current LR - UEM: {optimizer.param_groups[0]['lr']:.2e}, LoRA: {optimizer.param_groups[2]['lr']:.2e}")
 
+        # 保存最佳模型
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            ckpt_path = os.path.join(CKPT_DIR, "best_model.pth")
-            torch.save({
-                'epoch': epoch + 1,
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'val_loss': best_val_loss,
-            }, ckpt_path)
-            print(f"New best validation loss: {best_val_loss:.4f}. Saving model to {ckpt_path}")
-        else:
-            print(f"Validation loss did not improve from {best_val_loss:.4f}.")
-            
-    print("\n--- Training Complete ---")
+            model_path = os.path.join(CKPT_DIR, f"best_model_epoch_{epoch + 1}.pt")
+            torch.save(model.state_dict(), model_path)
+            print(f"Saved best model to {model_path}")
 
-if __name__ == "__main__":
-    main()
+    print("Training complete.")
