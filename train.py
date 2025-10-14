@@ -1,3 +1,6 @@
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
+
 import os
 import json
 import torch
@@ -6,7 +9,7 @@ from tqdm import tqdm
 from torch.utils.data import Dataset, DataLoader
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
-from torch.cuda.amp import autocast, GradScaler
+from torch.cuda.amp import autocast
 from transformers import AutoModel, AutoTokenizer, XLMRobertaTokenizer
 from peft import LoraConfig, get_peft_model, TaskType  # 添加 PEFT 导入
 from typing import List, Dict, Tuple
@@ -85,12 +88,13 @@ class TrainableEnhancer(torch.nn.Module):
         self.projection_layer = torch.nn.Sequential(
             torch.nn.Linear(self.uem.config.hidden_size, self.uem.config.hidden_size * 4),
             torch.nn.GELU(),
-            torch.nn.Linear(self.uem.config.hidden_size * 4, self.llm_teacher.config.hidden_size * PREFIX_LENGTH)
+            torch.nn.Linear(self.uem.config.hidden_size * 4, self.llm_student.config.hidden_size * PREFIX_LENGTH)
         )
-
-        # 冻结教师模型
-        for param in self.llm_teacher.parameters():
-            param.requires_grad = False
+        
+        if llm_teacher is not None:
+            # 冻结教师模型
+            for param in self.llm_teacher.parameters():
+                param.requires_grad = False
 
     @torch.no_grad()
     def get_teacher_logits(self, questions_asked: List[str], original_texts: List[str]) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -195,13 +199,19 @@ class TrainableEnhancer(torch.nn.Module):
         start_pos = combined_embeds.shape[1] - target_ids.shape[1] - 1
         end_pos = start_pos + target_ids.shape[1]
         logits_student = student_outputs.logits[:, start_pos:end_pos, :]
-
-        # 8. 计算 KL 散度损失
+        
+        # 8. 确保数据类型一致，并 clip logits 以防止溢出
+        logits_student = logits_student.to(dtype=torch.float32)  # 强制 float32
+        logits_teacher = logits_teacher.to(device=logits_student.device, dtype=torch.float32)  # 强制一致
+        
+        # Clip logits to prevent overflow
+        logits_student = torch.clamp(logits_student, min=-10.0, max=10.0)
+        logits_teacher = torch.clamp(logits_teacher, min=-10.0, max=10.0)
+        
+        # 9. 计算 KL 散度损失
         if logits_teacher.shape != logits_student.shape:
             print(f"Warning: Shape mismatch. Teacher: {logits_teacher.shape}, Student: {logits_student.shape}. Skipping batch.")
-            return torch.tensor(0.0, device=self.llm_student.device, requires_grad=True)
-
-        logits_teacher = logits_teacher.to(logits_student.device)
+            return torch.tensor(0.0, device=logits_student.device, requires_grad=True)
 
         student_log_sm = F.log_softmax(logits_student / DISTILLATION_TEMP, dim=-1)
         teacher_sm = F.softmax(logits_teacher / DISTILLATION_TEMP, dim=-1)
@@ -263,7 +273,7 @@ def main():
     print("Loading student model with LoRA...")
     llm_student = AutoModelForCausalLM.from_pretrained(
         LLM_MODEL_PATH,
-        torch_dtype=torch.bfloat16,
+        torch_dtype=torch.float32,  # 改为 float32 以提高数值稳定性
         device_map={"": LLM_DEVICE}
     )
     
@@ -326,7 +336,6 @@ def main():
     ])
     
     scheduler = CosineAnnealingLR(optimizer, T_max=EPOCHS, eta_min=1e-7)
-    scaler = GradScaler()
     best_val_loss = float('inf')
 
     print(f"\n--- Starting Knowledge Distillation Training with LoRA ---")
@@ -358,12 +367,10 @@ def main():
             total_train_loss += loss.item()
             num_samples_trained += 1
             
-            # 梯度缩放与反向传播
-            scaler.scale(loss).backward()
-            scaler.unscale_(optimizer)
+            # 移除 scaler 相关步骤，改为标准反向传播
+            loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), CLIPPING_NORM)
-            scaler.step(optimizer)
-            scaler.update()
+            optimizer.step()
             
             del logits_teacher, target_ids
             torch.cuda.empty_cache()
@@ -377,11 +384,27 @@ def main():
         print(f"Epoch {epoch + 1} | Train Loss: {avg_train_loss:.6f} | Val Loss: {val_loss:.6f}")
         print(f"Current LR - UEM: {optimizer.param_groups[0]['lr']:.2e}, LoRA: {optimizer.param_groups[2]['lr']:.2e}")
 
-        # 保存最佳模型
+        # 保存最佳模型 (解耦保存)
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            model_path = os.path.join(CKPT_DIR, f"best_model_epoch_{epoch + 1}.pt")
-            torch.save(model.state_dict(), model_path)
-            print(f"Saved best model to {model_path}")
+            # 创建一个目录来保存该 epoch 的所有组件
+            epoch_ckpt_dir = os.path.join(CKPT_DIR, f"best_model_epoch_{epoch + 1}")
+            os.makedirs(epoch_ckpt_dir, exist_ok=True)
+
+            # 1. 保存 LoRA 适配器权重
+            lora_path = os.path.join(epoch_ckpt_dir, "lora_adapters")
+            model.llm_student.save_pretrained(lora_path)
+
+            # 2. 保存 UEM 和投影层的权重
+            other_weights_path = os.path.join(epoch_ckpt_dir, "uem_projection.pt")
+            torch.save({
+                'uem_state_dict': model.uem.state_dict(),
+                'projection_layer_state_dict': model.projection_layer.state_dict()
+            }, other_weights_path)
+            
+            print(f"Saved decoupled model components to {epoch_ckpt_dir}")
 
     print("Training complete.")
+
+if __name__ == "__main__":
+    main()

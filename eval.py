@@ -4,6 +4,8 @@ import os
 import argparse
 from tqdm import tqdm
 from transformers import AutoTokenizer, AutoModelForCausalLM
+# 修改 peft 导入，增加 PeftModel
+from peft import LoraConfig, get_peft_model, TaskType, PeftModel
 from typing import Dict, List
 from datetime import datetime
 from openai import OpenAI
@@ -25,7 +27,8 @@ class Config:
     # --- 模型路径 ---
     LLM_PATH = "/root/autodl-tmp/huggingface/hub/models--meta-llama--Meta-Llama-3-8B-Instruct/snapshots/8afb486c1db24fe5011ec46dfbe5b5dccdb575c2"
     IEM_PATH = "/root/autodl-tmp/huggingface/hub/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09"
-    CKPT_PATH = "/root/autodl-tmp/PPPUE/ckpt/prefix_I/best_model.pth"
+    # 修改：CKPT_PATH 现在指向一个目录
+    CKPT_PATH = "/root/autodl-tmp/PPPUE/ckpt/prefix_lora"
     
     # --- 数据文件 ---
     INPUT_DATA_FILE = "/root/autodl-tmp/PPPUE/benchmark/reprocess/test/test_anony_with_loss.jsonl" 
@@ -33,10 +36,16 @@ class Config:
     
     # --- 实验设置 ---
     EVAL_MODE = "DP" # Options: BASELINE, STANDARD, CLIPPING_ONLY, DP, ORIGINAL_TEXT_BASELINE
-    EPSILON = 200.0
+    EPSILON = 100.0
     CLIPPING_NORM = 1.0
     PREFIX_LENGTH = 5
     LIMIT = None
+
+    # 添加 LoRA 配置，与 train.py 保持一致
+    LORA_R = 16
+    LORA_ALPHA = 32
+    LORA_DROPOUT = 0.1
+    LORA_TARGET_MODULES = ["q_proj", "k_proj", "v_proj", "o_proj"]
 
 # --- 2. 提示词模板和辅助函数 ---
 PROMPT_JUDGE = """
@@ -202,9 +211,10 @@ def evaluate_single_entry(
         attention_mask = torch.ones(combined_embeds.shape[:2], dtype=torch.long, device=combined_embeds.device)
 
         # 6. 使用拼接好的嵌入和 attention_mask 进行生成
-        outputs = shared_llm.generate(
+        # 修改：使用 eval_model.llm_student (LoRA 学生模型) 而不是 shared_llm
+        outputs = eval_model.llm_student.generate(
             inputs_embeds=combined_embeds, 
-            attention_mask=attention_mask,  # 传入 attention_mask
+            attention_mask=attention_mask,
             **generate_kwargs
         )
         generated_ids = outputs
@@ -225,18 +235,43 @@ def main(config: Config):
     # UEM模型只在非BASELINE模式下需要
     if config.EVAL_MODE not in ["BASELINE", "ORIGINAL_TEXT_BASELINE"]:
         uem_tokenizer = AutoTokenizer.from_pretrained(config.IEM_PATH)
-        print("--- Loading UEM Model ---")
-        eval_model = TrainableEnhancer(config.IEM_PATH, uem_tokenizer, shared_llm, shared_tokenizer)
+        print("--- Loading UEM and LoRA components ---")
+        
+        # 1. 定义解耦组件的路径
+        lora_adapter_path = os.path.join(config.CKPT_PATH, "lora_adapters")
+        other_weights_path = os.path.join(config.CKPT_PATH, "uem_projection.pt")
+
+        # 检查路径是否存在
+        if not os.path.isdir(lora_adapter_path) or not os.path.isfile(other_weights_path):
+            print(f"Error: Decoupled model components not found in '{config.CKPT_PATH}'")
+            print(f"Expected a 'lora_adapters' directory and a 'uem_projection.pt' file.")
+            return
+
+        # 2. 加载基础模型并应用保存的 LoRA 适配器
+        # PeftModel 会自动处理设备放置，与基础模型一致
+        print(f"Loading LoRA adapters from: {lora_adapter_path}")
+        llm_student = PeftModel.from_pretrained(shared_llm, lora_adapter_path)
+        # 为了推理速度，可以将适配器权重合并到模型中
+        llm_student = llm_student.merge_and_unload()
+        print("LoRA adapters loaded and merged successfully.")
+        
+        # 3. 初始化 TrainableEnhancer
+        # 教师模型在评估时为 None
+        eval_model = TrainableEnhancer(config.IEM_PATH, uem_tokenizer, None, llm_student, shared_tokenizer)
         eval_model.uem.to(config.IEM_DEVICE)
         eval_model.projection_layer.to(config.IEM_DEVICE)
         
-        checkpoint = torch.load(config.CKPT_PATH, map_location="cpu")
-        eval_model.load_state_dict(checkpoint['model_state_dict'], strict=False)
-        print(f"Successfully loaded trained UEM weights from {config.CKPT_PATH}")
+        # 4. 加载 UEM 和投影层的权重
+        print(f"Loading UEM and projection weights from: {other_weights_path}")
+        checkpoint = torch.load(other_weights_path, map_location="cpu")
+        eval_model.uem.load_state_dict(checkpoint['uem_state_dict'])
+        eval_model.projection_layer.load_state_dict(checkpoint['projection_layer_state_dict'])
+        
+        print(f"Successfully loaded all decoupled model components from {config.CKPT_PATH}")
         eval_model.eval()
     else:
         eval_model = None
-        print(f"Running in {config.EVAL_MODE} mode. UEM model is not loaded.")
+        print(f"Running in {config.EVAL_MODE} mode. UEM and LoRA models are not loaded.")
 
     with open(config.INPUT_DATA_FILE, 'r', encoding='utf-8') as f:
         lines = f.readlines()
@@ -314,7 +349,8 @@ if __name__ == "__main__":
     parser.add_argument('--mode', type=str, help=f"Evaluation mode.")
     parser.add_argument('--limit', type=int, help="Limit the number of records to process.")
     parser.add_argument('--input', type=str, help="Path to the pre-anonymized input data file.")
-    parser.add_argument('--ckpt', type=str, help="Path to the IEM checkpoint file.")
+    # 在命令行参数解析部分，相应地更新帮助文本
+    parser.add_argument('--ckpt', type=str, help="Path to the checkpoint directory containing model components.")
     args = parser.parse_args()
 
     config = Config()
