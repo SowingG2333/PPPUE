@@ -4,7 +4,6 @@ import os
 import argparse
 from tqdm import tqdm
 from transformers import AutoTokenizer, AutoModelForCausalLM
-# 修改 peft 导入，增加 PeftModel
 from peft import LoraConfig, get_peft_model, TaskType, PeftModel
 from typing import Dict, List
 from datetime import datetime
@@ -35,8 +34,8 @@ class Config:
     OUTPUT_DIR = "/root/autodl-tmp/PPPUE/results"
     
     # --- 实验设置 ---
-    EVAL_MODE = "DP" # Options: BASELINE, STANDARD, CLIPPING_ONLY, DP, ORIGINAL_TEXT_BASELINE
-    EPSILON = 100.0
+    EVAL_MODE = "BASELINE" # Options: BASELINE, STANDARD, CLIPPING_ONLY, DP, ORIGINAL_TEXT_BASELINE
+    EPSILON = 50.0
     CLIPPING_NORM = 1.0
     PREFIX_LENGTH = 5
     LIMIT = None

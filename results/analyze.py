@@ -8,7 +8,7 @@ from sklearn.metrics import confusion_matrix
 import warnings
 
 # --- Configuration ---
-FILE_PATH = '/home/sowingg/coding/LLM/PPPUE/results/direct_eval_DP_eps200.0.json' # Please ensure the filename is correct
+FILE_PATH = '/root/autodl-tmp/PPPUE/results/LoRA_Prefix/direct_eval_BASELINE.json' # Please ensure the filename is correct
 
 # Matplotlib global settings
 warnings.filterwarnings('ignore')
