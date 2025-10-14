@@ -8,7 +8,7 @@ from sklearn.metrics import confusion_matrix
 import warnings
 
 # --- Configuration ---
-FILE_PATH = '/root/autodl-tmp/PPPUE/results/LoRA_Prefix/direct_eval_BASELINE.json' # Please ensure the filename is correct
+FILE_PATH = '/Users/sowingg/coding/LLM/PPPUE/results/LoRA_Prefix_sota/direct_eval_DP_eps200.0.json' # Please ensure the filename is correct
 
 # Matplotlib global settings
 warnings.filterwarnings('ignore')
@@ -17,41 +17,42 @@ warnings.filterwarnings('ignore')
 
 def get_true_judgement(row):
     """
-    Re-judges the prediction based on our own logic to fix the original Judgement bug.
+    严格匹配判断：仅当预测职业与真实职业完全一致时才判定为正确（忽略大小写）
     """
     true_label = row['True Profession'].lower().strip()
     gen_answer = str(row['Generated Answer']).lower().strip()
 
-    # 1. Define synonyms
-    synonyms = {
-        'astronomer': ['astrophysicist', 'cosmologist'],
-        'data scientist': ['data analyst'],
-        'chef': ['cook'],
-        'graphic designer': ['artist', 'visual designer'],
-        'businessperson': ['retired ceo', 'ceo', 'business consultant', 'business development manager']
-    }
-
-    # 2. Check for garbage output
-    if gen_answer == '[empty_output]' or all(c in '., ' for c in gen_answer):
+    # 1. 检查垃圾输出
+    if is_garbage_output(gen_answer):
         return False
 
-    # 3. Check for direct match or synonym match
-    if gen_answer == true_label:
-        return True
-    
-    for key, values in synonyms.items():
-        if (true_label == key and gen_answer in values) or \
-           (gen_answer == key and true_label in values):
-            return True
-            
-    return False
+    # 2. 仅进行严格的完全匹配（已转换为小写，忽略大小写差异）
+    return gen_answer == true_label
 
 def is_garbage_output(answer):
     """
-    Determines if the output is invalid content.
+    判断输出是否为无效内容（更严格的检测）
     """
     answer_norm = str(answer).lower().strip()
-    return answer_norm == '[empty_output]' or not answer_norm or all(c in '., ' for c in answer_norm)
+    
+    # 检查空输出或标记
+    if answer_norm == '[empty_output]' or not answer_norm:
+        return True
+    
+    # 检查是否只包含标点符号和空格
+    if all(c in '., \n\t' for c in answer_norm):
+        return True
+    
+    # 检查是否是重复字符（如 "..." 或 "。。。"）
+    if len(set(answer_norm.replace(' ', ''))) <= 2 and len(answer_norm) > 5:
+        return True
+    
+    # 检查是否包含至少一个字母或汉字
+    has_valid_char = any(c.isalpha() or '\u4e00' <= c <= '\u9fff' for c in answer_norm)
+    if not has_valid_char:
+        return True
+        
+    return False
 
 # --- Main Analysis Workflow ---
 
@@ -150,27 +151,50 @@ def analyze_experiment(file_path):
 
     # Confusion Matrix
     # For clarity, we only show the most common professions
-    top_professions = df['True Profession'].value_counts().nlargest(7).index
-    cm_df = df[df['True Profession'].isin(top_professions)]
+    
+    # 标准化职业名称（忽略大小写）
+    df['True Profession Normalized'] = df['True Profession'].str.lower().str.strip()
+    df['Generated Answer Normalized'] = df['Generated Answer'].str.lower().str.strip()
+    
+    top_professions = df['True Profession Normalized'].value_counts().nlargest(7).index
+    cm_df = df[df['True Profession Normalized'].isin(top_professions)].copy()
     
     # Classify garbage and rare predictions as 'Other'
-    valid_predictions = cm_df['Generated Answer'].value_counts().nlargest(7).index
-    cm_df['Generated Answer Coded'] = cm_df['Generated Answer'].apply(lambda x: x if (x in valid_predictions and not is_garbage_output(x)) else 'Other')
+    valid_predictions = cm_df['Generated Answer Normalized'].value_counts().nlargest(7).index
+    cm_df['Generated Answer Coded'] = cm_df['Generated Answer Normalized'].apply(
+        lambda x: x if (x in valid_predictions and not is_garbage_output(x)) else 'other'
+    )
 
-    labels = sorted(list(set(cm_df['True Profession']) | set(cm_df['Generated Answer Coded'])))
+    labels = sorted(list(set(cm_df['True Profession Normalized']) | set(cm_df['Generated Answer Coded'])))
     
     if len(labels) > 1:
-        cm = confusion_matrix(cm_df['True Profession'], cm_df['Generated Answer Coded'], labels=labels)
+        cm = confusion_matrix(cm_df['True Profession Normalized'], cm_df['Generated Answer Coded'], labels=labels)
         
-        plt.figure(figsize=(12, 10))
-        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=labels, yticklabels=labels)
-        plt.title('Confusion Matrix (True Profession vs. Generated Profession)', fontsize=18)
-        plt.xlabel('Generated Profession', fontsize=14)
-        plt.ylabel('True Profession', fontsize=14)
-        plt.xticks(rotation=45, ha='right')
-        plt.yticks(rotation=0)
+        # 创建更大的图形以适应标签
+        fig_size = max(14, len(labels) * 1.5)
+        plt.figure(figsize=(fig_size, fig_size * 0.85))
+        
+        # 使用更好的颜色方案和格式
+        sns.heatmap(cm, annot=True, fmt='d', cmap='YlOrRd', 
+                    xticklabels=labels, yticklabels=labels,
+                    cbar_kws={'label': 'Number of Samples', 'shrink': 0.75, 'pad': 0.02},
+                    linewidths=0.8, linecolor='white',
+                    square=True,
+                    annot_kws={'fontsize': 11, 'weight': 'bold'},
+                    vmin=0)  # 确保颜色从0开始
+        
+        plt.title('Confusion Matrix (True Profession vs. Generated Profession)', 
+                  fontsize=20, fontweight='bold', pad=25)
+        plt.xlabel('Predicted Profession', fontsize=15, fontweight='bold', labelpad=12)
+        plt.ylabel('True Profession', fontsize=15, fontweight='bold', labelpad=12)
+        
+        # 优化标签显示
+        plt.xticks(rotation=45, ha='right', rotation_mode='anchor', fontsize=12)
+        plt.yticks(rotation=0, fontsize=12, va='center')
+        
+        # 调整布局以防止标签被裁剪
         plt.tight_layout()
-        plt.savefig("confusion_matrix.png", dpi=300, bbox_inches='tight')
+        plt.savefig("confusion_matrix.png", dpi=300, bbox_inches='tight', facecolor='white', edgecolor='none')
         print("Generated confusion matrix chart: confusion_matrix.png")
     
 if __name__ == '__main__':
