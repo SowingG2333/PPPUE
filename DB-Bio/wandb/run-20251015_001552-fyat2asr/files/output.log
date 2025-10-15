@@ -1,0 +1,15 @@
+Using UEM_DEVICE: cuda:0 and LLM_DEVICE: cuda:0
+Checkpoints will be saved to: /home/sowingg/coding/LLM/PPPUE/DB-Bio/ckpt/bio_prefix_lora
+Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+Loading checkpoint shards: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████| 4/4 [00:06<00:00,  1.70s/it]
+Loading student model with LoRA...
+Loading checkpoint shards: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████| 4/4 [00:06<00:00,  1.67s/it]
+trainable params: 13,631,488 || all params: 8,043,892,736 || trainable%: 0.16946382115456393
+Loaded 1240 samples from /root/autodl-tmp/PPPUE/DB-Bio/benchmark/reprocess/train.jsonl
+Loaded 310 samples from /root/autodl-tmp/PPPUE/DB-Bio/benchmark/reprocess/val.jsonl
+Dataset loaded: 1240 training samples and 310 validation samples.
+
+--- Starting Biography Knowledge Distillation Training with LoRA ---
+UEM Learning Rate: 1e-05
+LoRA Learning Rate: 0.0001
+Training Epoch 1:  18%|████████████████████▏                                                                                            | 221/1240 [03:18<14:16,  1.19it/s]

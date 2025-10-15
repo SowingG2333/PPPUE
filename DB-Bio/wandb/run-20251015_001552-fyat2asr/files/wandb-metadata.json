@@ -1,0 +1,40 @@
+{
+  "os": "Linux-5.15.0-78-generic-x86_64-with-glibc2.35",
+  "python": "CPython 3.9.23",
+  "startedAt": "2025-10-14T16:15:52.221685Z",
+  "program": "/root/autodl-tmp/PPPUE/DB-Bio/train_wandb.py",
+  "codePath": "DB-Bio/train_wandb.py",
+  "codePathLocal": "train_wandb.py",
+  "git": {
+    "remote": "https://github.com/SowingG2333/PPPUE.git",
+    "commit": "a5899aff32594d9ab917ab2b8b9f2587582a22e1"
+  },
+  "email": "3243856409@qq.com",
+  "root": "/root/autodl-tmp/PPPUE/DB-Bio",
+  "host": "autodl-container-65d14488ce-2a6fb8fb",
+  "executable": "/root/miniconda3/envs/llm/bin/python",
+  "cpu_count": 104,
+  "cpu_count_logical": 208,
+  "gpu": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "32212254720",
+      "used": "13996994560"
+    }
+  },
+  "memory": {
+    "total": "1081795907584"
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+      "memoryTotal": "102641958912",
+      "cudaCores": 24064,
+      "architecture": "Blackwell",
+      "uuid": "GPU-35170b76-56ce-240a-19c0-0c092a3e8501"
+    }
+  ],
+  "cudaVersion": "13.0",
+  "writerId": "yfise31puq0ts4sfcxy2n3kzrz58e46n"
+}

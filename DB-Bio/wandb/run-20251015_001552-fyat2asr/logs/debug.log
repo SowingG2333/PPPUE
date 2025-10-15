@@ -1,0 +1,21 @@
+2025-10-15 00:15:52,223 INFO    MainThread:6247 [wandb_setup.py:_flush():81] Current SDK version is 0.22.2
+2025-10-15 00:15:52,223 INFO    MainThread:6247 [wandb_setup.py:_flush():81] Configure stats pid to 6247
+2025-10-15 00:15:52,223 INFO    MainThread:6247 [wandb_setup.py:_flush():81] Loading settings from /root/.config/wandb/settings
+2025-10-15 00:15:52,223 INFO    MainThread:6247 [wandb_setup.py:_flush():81] Loading settings from /root/autodl-tmp/PPPUE/DB-Bio/wandb/settings
+2025-10-15 00:15:52,223 INFO    MainThread:6247 [wandb_setup.py:_flush():81] Loading settings from environment variables
+2025-10-15 00:15:52,223 INFO    MainThread:6247 [wandb_init.py:setup_run_log_directory():705] Logging user logs to /root/autodl-tmp/PPPUE/DB-Bio/wandb/run-20251015_001552-fyat2asr/logs/debug.log
+2025-10-15 00:15:52,223 INFO    MainThread:6247 [wandb_init.py:setup_run_log_directory():706] Logging internal logs to /root/autodl-tmp/PPPUE/DB-Bio/wandb/run-20251015_001552-fyat2asr/logs/debug-internal.log
+2025-10-15 00:15:52,223 INFO    MainThread:6247 [wandb_init.py:init():832] calling init triggers
+2025-10-15 00:15:52,223 INFO    MainThread:6247 [wandb_init.py:init():837] wandb.init called with sweep_config: {}
+config: {'learning_rate_uem': 1e-05, 'learning_rate_lora': 0.0001, 'epochs': 100, 'batch_size': 1, 'prefix_length': 5, 'clipping_norm': 1.0, 'distillation_temp': 1.0, 'lora_r': 16, 'lora_alpha': 32, 'lora_dropout': 0.1, 'llm_model': '/root/autodl-tmp/huggingface/hub/models--meta-llama--Meta-Llama-3-8B-Instruct/snapshots/8afb486c1db24fe5011ec46dfbe5b5dccdb575c2', 'uem_model': '/root/autodl-tmp/huggingface/hub/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09', '_wandb': {}}
+2025-10-15 00:15:52,223 INFO    MainThread:6247 [wandb_init.py:init():880] starting backend
+2025-10-15 00:15:52,445 INFO    MainThread:6247 [wandb_init.py:init():883] sending inform_init request
+2025-10-15 00:15:52,466 INFO    MainThread:6247 [wandb_init.py:init():891] backend started and connected
+2025-10-15 00:15:52,469 INFO    MainThread:6247 [wandb_init.py:init():961] updated telemetry
+2025-10-15 00:15:52,485 INFO    MainThread:6247 [wandb_init.py:init():985] communicating run to backend with 90.0 second timeout
+2025-10-15 00:15:53,923 INFO    MainThread:6247 [wandb_init.py:init():1036] starting run threads in backend
+2025-10-15 00:15:53,991 INFO    MainThread:6247 [wandb_run.py:_console_start():2509] atexit reg
+2025-10-15 00:15:53,992 INFO    MainThread:6247 [wandb_run.py:_redirect():2357] redirect: wrap_raw
+2025-10-15 00:15:53,992 INFO    MainThread:6247 [wandb_run.py:_redirect():2426] Wrapping output streams.
+2025-10-15 00:15:53,992 INFO    MainThread:6247 [wandb_run.py:_redirect():2449] Redirects installed.
+2025-10-15 00:15:53,994 INFO    MainThread:6247 [wandb_init.py:init():1076] run started, returning control to user process

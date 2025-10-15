@@ -13,6 +13,7 @@ from torch.cuda.amp import autocast
 from transformers import AutoModel, AutoTokenizer, XLMRobertaTokenizer
 from peft import LoraConfig, get_peft_model, TaskType
 from typing import List, Dict, Tuple
+import wandb
 
 # --- CONFIGURATION VARIABLES --- #
 LLM_MODEL_PATH = "/root/autodl-tmp/huggingface/hub/models--meta-llama--Meta-Llama-3-8B-Instruct/snapshots/8afb486c1db24fe5011ec46dfbe5b5dccdb575c2"
@@ -25,7 +26,7 @@ CKPT_DIR = "/home/sowingg/coding/LLM/PPPUE/DB-Bio/ckpt/bio_prefix_lora"
 # 训练超参数
 LEARNING_RATE_UEM = 1e-5
 LEARNING_RATE_LORA = 1e-4
-EPOCHS = 100
+EPOCHS = 10
 BATCH_SIZE = 1
 PREFIX_LENGTH = 5
 UEM_DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -309,6 +310,25 @@ def main():
     """主函数"""
     os.makedirs(CKPT_DIR, exist_ok=True)
 
+    # --- WANDB 初始化 ---
+    wandb.init(
+        project="PPPUE-DB-Bio-Distillation",
+        config={
+            "learning_rate_uem": LEARNING_RATE_UEM,
+            "learning_rate_lora": LEARNING_RATE_LORA,
+            "epochs": EPOCHS,
+            "batch_size": BATCH_SIZE,
+            "prefix_length": PREFIX_LENGTH,
+            "clipping_norm": CLIPPING_NORM,
+            "distillation_temp": DISTILLATION_TEMP,
+            "lora_r": LORA_R,
+            "lora_alpha": LORA_ALPHA,
+            "lora_dropout": LORA_DROPOUT,
+            "llm_model": LLM_MODEL_PATH,
+            "uem_model": UEM_MODEL_PATH,
+        }
+    )
+
     print(f"Using UEM_DEVICE: {UEM_DEVICE} and LLM_DEVICE: {LLM_DEVICE}")
     print(f"Checkpoints will be saved to: {CKPT_DIR}")
     
@@ -426,6 +446,15 @@ def main():
         print(f"Epoch {epoch + 1} | Train Loss: {avg_train_loss:.6f} | Val Loss: {val_loss:.6f}")
         print(f"Current LR - UEM: {optimizer.param_groups[0]['lr']:.2e}, LoRA: {optimizer.param_groups[2]['lr']:.2e}")
 
+        # --- WANDB 日志记录 ---
+        wandb.log({
+            "epoch": epoch + 1,
+            "train_loss": avg_train_loss,
+            "val_loss": val_loss,
+            "lr_uem": optimizer.param_groups[0]['lr'],
+            "lr_lora": optimizer.param_groups[2]['lr']
+        })
+
         # 保存最佳模型
         if val_loss < best_val_loss:
             best_val_loss = val_loss
@@ -446,6 +475,7 @@ def main():
             print(f"Saved decoupled model components to {epoch_ckpt_dir}")
 
     print("Training complete.")
+    wandb.finish()
 
 if __name__ == "__main__":
     main()
