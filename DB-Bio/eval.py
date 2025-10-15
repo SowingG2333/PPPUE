@@ -30,11 +30,11 @@ class Config:
     CKPT_PATH = "/root/autodl-tmp/PPPUE/DB-Bio/ckpt/best_model_epoch_11" # 示例：指向一个具体的最佳模型目录
     
     # --- 数据文件 ---
-    INPUT_DATA_FILE = "/root/autodl-tmp/PPPUE/DB-Bio/benchmark/reprocess/test.jsonl" 
+    INPUT_DATA_FILE = "/root/autodl-tmp/PPPUE/DB-Bio/benchmark/reprocess/new_strategy/test/anony_test_with_loss.jsonl" 
     OUTPUT_DIR = "/root/autodl-tmp/PPPUE/DB-Bio/results"
     
     # --- 实验设置 ---
-    EVAL_MODE = "ORIGINAL_TEXT_BASELINE" # Options: BASELINE, STANDARD, CLIPPING_ONLY, DP, ORIGINAL_TEXT_BASELINE
+    EVAL_MODE = "BASELINE" # Options: BASELINE, STANDARD, CLIPPING_ONLY, DP, ORIGINAL_TEXT_BASELINE
     EPSILON = 100.0
     CLIPPING_NORM = 1.0
     PREFIX_LENGTH = 5

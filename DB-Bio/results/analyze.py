@@ -13,7 +13,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed # 引入并行处理库
 
 # --- Configuration ---
-FILE_PATH = '/root/autodl-tmp/PPPUE/DB-Bio/results/eval_BASELINE.json' # 请确保文件名正确
+FILE_PATH = '/root/autodl-tmp/PPPUE/DB-Bio/results/new_strategy/eval_CLIPPING_ONLY.json' # 请确保文件名正确
 
 # --- 新增：DeepSeek API 配置 ---
 USE_DEEPSEEK_EVAL = True # 设置为 True 以启用 DeepSeek API 进行同义词判断
