@@ -1,0 +1,71 @@
+Using UEM_DEVICE: cuda:0 and LLM_DEVICE: cuda:0
+Checkpoints will be saved to: /root/autodl-tmp/PPPUE/DB-Bio/ckpt
+Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+Loading checkpoint shards: 100%|██████████████████████████████████████████████| 4/4 [00:07<00:00,  1.81s/it]
+Loading student model with LoRA...
+Loading checkpoint shards: 100%|██████████████████████████████████████████████| 4/4 [00:07<00:00,  1.91s/it]
+trainable params: 13,631,488 || all params: 8,043,892,736 || trainable%: 0.16946382115456393
+Loaded 1240 samples from /root/autodl-tmp/PPPUE/DB-Bio/benchmark/reprocess/train.jsonl
+Loaded 310 samples from /root/autodl-tmp/PPPUE/DB-Bio/benchmark/reprocess/val.jsonl
+Dataset loaded: 1240 training samples and 310 validation samples.
+
+--- Starting Biography Knowledge Distillation Training with LoRA ---
+UEM Learning Rate: 1e-06
+LoRA Learning Rate: 1e-05
+Training Epoch 1: 100%|█████████████████████████████████████████████████| 1240/1240 [18:25<00:00,  1.12it/s]
+Validating: 100%|█████████████████████████████████████████████████████████| 310/310 [03:10<00:00,  1.62it/s]
+Epoch 1 | Train Loss: 0.016707 | Val Loss: 0.009398
+Current LR - UEM: 9.99e-07, LoRA: 9.99e-06
+Saved decoupled model components to /root/autodl-tmp/PPPUE/DB-Bio/ckpt/best_model_epoch_1
+Training Epoch 2: 100%|█████████████████████████████████████████████████| 1240/1240 [18:13<00:00,  1.13it/s]
+Validating: 100%|█████████████████████████████████████████████████████████| 310/310 [03:11<00:00,  1.62it/s]
+Epoch 2 | Train Loss: 0.007378 | Val Loss: 0.008560
+Current LR - UEM: 9.96e-07, LoRA: 9.96e-06
+Saved decoupled model components to /root/autodl-tmp/PPPUE/DB-Bio/ckpt/best_model_epoch_2
+Training Epoch 3: 100%|█████████████████████████████████████████████████| 1240/1240 [18:22<00:00,  1.12it/s]
+Validating: 100%|████████████████████████████████████████████████████████| 310/310 [03:12<00:00,  1.61it/s]
+Epoch 3 | Train Loss: 0.005575 | Val Loss: 0.009164
+Current LR - UEM: 9.92e-07, LoRA: 9.91e-06
+Training Epoch 4: 100%|████████████████████████████████████████████████| 1240/1240 [18:25<00:00,  1.12it/s]
+Validating: 100%|████████████████████████████████████████████████████████| 310/310 [03:13<00:00,  1.60it/s]
+Epoch 4 | Train Loss: 0.004701 | Val Loss: 0.006400
+Current LR - UEM: 9.86e-07, LoRA: 9.84e-06
+Saved decoupled model components to /root/autodl-tmp/PPPUE/DB-Bio/ckpt/best_model_epoch_4
+Training Epoch 5: 100%|████████████████████████████████████████████████| 1240/1240 [18:23<00:00,  1.12it/s]
+Validating: 100%|████████████████████████████████████████████████████████| 310/310 [03:12<00:00,  1.61it/s]
+Epoch 5 | Train Loss: 0.004073 | Val Loss: 0.006091
+Current LR - UEM: 9.78e-07, LoRA: 9.76e-06
+Saved decoupled model components to /root/autodl-tmp/PPPUE/DB-Bio/ckpt/best_model_epoch_5
+Training Epoch 6: 100%|████████████████████████████████████████████████| 1240/1240 [18:23<00:00,  1.12it/s]
+Validating: 100%|████████████████████████████████████████████████████████| 310/310 [03:12<00:00,  1.61it/s]
+Epoch 6 | Train Loss: 0.003827 | Val Loss: 0.005742
+Current LR - UEM: 9.68e-07, LoRA: 9.65e-06
+Saved decoupled model components to /root/autodl-tmp/PPPUE/DB-Bio/ckpt/best_model_epoch_6
+Training Epoch 7: 100%|████████████████████████████████████████████████| 1240/1240 [18:24<00:00,  1.12it/s]
+Validating: 100%|████████████████████████████████████████████████████████| 310/310 [03:11<00:00,  1.62it/s]
+Epoch 7 | Train Loss: 0.003473 | Val Loss: 0.005436
+Current LR - UEM: 9.57e-07, LoRA: 9.53e-06
+Saved decoupled model components to /root/autodl-tmp/PPPUE/DB-Bio/ckpt/best_model_epoch_7
+Training Epoch 8: 100%|████████████████████████████████████████████████| 1240/1240 [18:23<00:00,  1.12it/s]
+Validating: 100%|████████████████████████████████████████████████████████| 310/310 [03:12<00:00,  1.61it/s]
+Epoch 8 | Train Loss: 0.003322 | Val Loss: 0.005639
+Current LR - UEM: 9.44e-07, LoRA: 9.39e-06
+Training Epoch 9: 100%|████████████████████████████████████████████████| 1240/1240 [18:23<00:00,  1.12it/s]
+Validating: 100%|████████████████████████████████████████████████████████| 310/310 [03:14<00:00,  1.60it/s]
+Epoch 9 | Train Loss: 0.003005 | Val Loss: 0.005473
+Current LR - UEM: 9.30e-07, LoRA: 9.23e-06
+Training Epoch 10: 100%|███████████████████████████████████████████████| 1240/1240 [18:15<00:00,  1.13it/s]
+Validating: 100%|████████████████████████████████████████████████████████| 310/310 [03:13<00:00,  1.60it/s]
+Epoch 10 | Train Loss: 0.002910 | Val Loss: 0.005427
+Current LR - UEM: 9.14e-07, LoRA: 9.05e-06
+Saved decoupled model components to /root/autodl-tmp/PPPUE/DB-Bio/ckpt/best_model_epoch_10
+Training Epoch 11: 100%|███████████████████████████████████████████████| 1240/1240 [18:20<00:00,  1.13it/s]
+Validating: 100%|████████████████████████████████████████████████████████| 310/310 [03:11<00:00,  1.62it/s]
+Epoch 11 | Train Loss: 0.002662 | Val Loss: 0.005089
+Current LR - UEM: 8.97e-07, LoRA: 8.86e-06
+Saved decoupled model components to /root/autodl-tmp/PPPUE/DB-Bio/ckpt/best_model_epoch_11
+Training Epoch 12: 100%|███████████████████████████████████████████████| 1240/1240 [18:12<00:00,  1.14it/s]
+Validating: 100%|████████████████████████████████████████████████████████| 310/310 [03:10<00:00,  1.62it/s]
+Epoch 12 | Train Loss: 0.002665 | Val Loss: 0.005437
+Current LR - UEM: 8.78e-07, LoRA: 8.66e-06
+Training Epoch 13:  15%|███████▏                                        | 185/1240 [02:38<13:57,  1.26it/s]

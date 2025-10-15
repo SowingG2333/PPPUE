@@ -1,0 +1,7 @@
+{"time":"2025-10-15T10:38:21.242406851+08:00","level":"INFO","msg":"stream: starting","core version":"0.22.2"}
+{"time":"2025-10-15T10:38:22.869371037+08:00","level":"INFO","msg":"stream: created new stream","id":"b7kbk04b"}
+{"time":"2025-10-15T10:38:22.869489677+08:00","level":"INFO","msg":"handler: started","stream_id":"b7kbk04b"}
+{"time":"2025-10-15T10:38:22.869577095+08:00","level":"INFO","msg":"stream: started","id":"b7kbk04b"}
+{"time":"2025-10-15T10:38:22.869623517+08:00","level":"INFO","msg":"writer: started","stream_id":"b7kbk04b"}
+{"time":"2025-10-15T10:38:22.869647103+08:00","level":"INFO","msg":"sender: started","stream_id":"b7kbk04b"}
+{"time":"2025-10-15T13:47:38.708500643+08:00","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/graphql\": EOF"}

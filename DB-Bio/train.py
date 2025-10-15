@@ -19,8 +19,8 @@ LLM_MODEL_PATH = "/root/autodl-tmp/huggingface/hub/models--meta-llama--Meta-Llam
 UEM_MODEL_PATH = "/root/autodl-tmp/huggingface/hub/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09"
 
 TRAIN_DATA_FILE = "/root/autodl-tmp/PPPUE/DB-Bio/benchmark/reprocess/train.jsonl"
-VAL_DATA_FILE = "/root/autodl-tmp/PPPUE/DB-Bio/benchmark/reprocess/val.jsonl"  # 使用 val.jsonl 作为验证集
-CKPT_DIR = "/home/sowingg/coding/LLM/PPPUE/DB-Bio/ckpt/bio_prefix_lora"
+VAL_DATA_FILE = "/root/autodl-tmp/PPPUE/DB-Bio/benchmark/reprocess/val.jsonl"
+CKPT_DIR = "/root/autodl-tmp/PPPUE/DB-Bio/ckpt"
 
 # 训练超参数
 LEARNING_RATE_UEM = 1e-5
