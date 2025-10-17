@@ -27,10 +27,10 @@ class Config:
     # --- 模型路径 (与 train_wandb.py 保持一致) ---
     LLM_PATH = "/root/autodl-tmp/huggingface/hub/models--meta-llama--Meta-Llama-3-8B-Instruct/snapshots/8afb486c1db24fe5011ec46dfbe5b5dccdb575c2"
     UEM_PATH = "/root/autodl-tmp/huggingface/hub/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09"
-    CKPT_PATH = "/root/autodl-tmp/PPPUE/DB-Bio/ckpt/new_strategy/best_model_epoch_8" # 示例：指向一个具体的最佳模型目录
+    CKPT_PATH = ""
     
     # --- 数据文件 ---
-    INPUT_DATA_FILE = "/root/autodl-tmp/PPPUE/DB-Bio/benchmark/reprocess/new_strategy/test/anony_test_with_loss_relabel.jsonl" 
+    INPUT_DATA_FILE = "" 
     OUTPUT_DIR = "/root/autodl-tmp/PPPUE/DB-Bio/results"
     
     # --- 实验设置 ---
