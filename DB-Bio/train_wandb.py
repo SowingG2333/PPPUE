@@ -19,9 +19,9 @@ import wandb
 LLM_MODEL_PATH = "/root/autodl-tmp/huggingface/hub/models--meta-llama--Meta-Llama-3-8B-Instruct/snapshots/8afb486c1db24fe5011ec46dfbe5b5dccdb575c2"
 UEM_MODEL_PATH = "/root/autodl-tmp/huggingface/hub/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09"
 
-TRAIN_DATA_FILE = "/root/autodl-tmp/PPPUE/DB-Bio/benchmark/reprocess/train.jsonl"
-VAL_DATA_FILE = "/root/autodl-tmp/PPPUE/DB-Bio/benchmark/reprocess/val.jsonl"
-CKPT_DIR = "/root/autodl-tmp/PPPUE/DB-Bio/ckpt"
+TRAIN_DATA_FILE = "/root/autodl-tmp/PPPUE/DB-Bio/benchmark/reprocess/new_strategy/train/train.jsonl"
+VAL_DATA_FILE = "/root/autodl-tmp/PPPUE/DB-Bio/benchmark/reprocess/new_strategy/train/val.jsonl"
+CKPT_DIR = "/root/autodl-tmp/PPPUE/DB-Bio/ckpt/new_strategy"
 
 # 训练超参数
 LEARNING_RATE_UEM = 1e-6
@@ -33,7 +33,7 @@ UEM_DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 LLM_DEVICE = "cuda:1" if torch.cuda.is_available() and torch.cuda.device_count() > 1 else UEM_DEVICE
 CLIPPING_NORM = 1.0
 DISTILLATION_TEMP = 1.0
-MAX_GEN_TOKENS = 10
+MAX_GEN_TOKENS = 20
 
 # LoRA 配置
 LORA_R = 16
@@ -43,18 +43,21 @@ LORA_TARGET_MODULES = ["q_proj", "k_proj", "v_proj", "o_proj"]
 
 # ----- 传记系统提示词 -----
 BIO_PROMPT_SYSTEM = """
-You are an expert in analyzing biographical texts to identify a person's profession or occupation.
+You are a meticulous biographical analyst, an expert in identifying the most precise and current professional roles of public figures.
 """
 
 BIO_PROMPT_USER = """
-Based on the provided [Original Biography] and [Anonymized Biography], your goal is to identify the person's primary occupation or professional category.
-Your response MUST be a single occupation name (e.g., "Architect", "Tennis Player", "Engineer"), without any additional text or explanation.
+Based on the following [Biography Text], your goal is to identify the person's **single most current and specific primary occupation**.
 
-[Original Biography]:
-{original_biography}
+**CRITICAL INSTRUCTIONS:**
+1.  **Prioritize the Current Role**: If the text mentions both past and present professions, you MUST identify the most recent one.
+2.  **Be Specific**: Avoid general categories. For example, if the text says someone "is now working as an academy coach at Ipswich Town", your answer should be "Academy Coach", not the more general "Soccer Player" or "Coach".
+3.  **Single Output**: Your response MUST be a single occupation name, without any additional text or explanation.
 
-[Anonymized Biography]:
-{anonymized_biography}
+[Biography Text]:
+{biography_text}
+
+Your Answer:
 """
 
 class BioDataset(Dataset):
@@ -76,7 +79,7 @@ class BioDataset(Dataset):
             "original_text": item['text'],
             "anonymized_text": item['anonymized_text'],
             "loss_description_sentence": item['loss_description_sentence'],
-            "label": item['label']  # 职业标签
+            "label": item['label_accurate']
         }
 
 class BioTrainableEnhancer(torch.nn.Module):
@@ -104,11 +107,9 @@ class BioTrainableEnhancer(torch.nn.Module):
     def get_teacher_logits(self, original_texts: List[str], anonymized_texts: List[str]) -> Tuple[torch.Tensor, torch.Tensor]:
         """使用教师模型生成目标序列和 logits"""
         original_bio = original_texts[0]
-        anonymized_bio = anonymized_texts[0]
 
         teacher_user_prompt = BIO_PROMPT_USER.format(
-            original_biography=original_bio,
-            anonymized_biography=anonymized_bio
+            biography_text=original_bio
         )
         teacher_conversation = [
             {"role": "system", "content": BIO_PROMPT_SYSTEM},
@@ -144,7 +145,6 @@ class BioTrainableEnhancer(torch.nn.Module):
 
     def forward(self,
                 loss_description_sentences: List[str],
-                original_texts: List[str],
                 anonymized_texts: List[str],
                 logits_teacher: torch.Tensor,
                 target_ids: torch.Tensor) -> torch.Tensor:
@@ -177,8 +177,7 @@ class BioTrainableEnhancer(torch.nn.Module):
         embedding_layer = self.llm_student.get_input_embeddings()
 
         student_user_prompt = BIO_PROMPT_USER.format(
-            original_biography=original_texts[0],
-            anonymized_biography=anonymized_texts[0]
+            biography_text=anonymized_texts[0]
         )
 
         system_part = self.llm_tokenizer.apply_chat_template(
@@ -292,7 +291,6 @@ def evaluate(model, data_loader):
                 
             loss = model(
                 loss_description_sentences=batch['loss_description_sentence'],
-                original_texts=batch['original_text'],
                 anonymized_texts=batch['anonymized_text'],
                 logits_teacher=logits_teacher,
                 target_ids=target_ids
@@ -423,7 +421,6 @@ def main():
             optimizer.zero_grad()
             loss = model(
                 loss_description_sentences=batch['loss_description_sentence'],
-                original_texts=batch['original_text'],
                 anonymized_texts=batch['anonymized_text'],
                 logits_teacher=logits_teacher,
                 target_ids=target_ids

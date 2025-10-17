@@ -27,39 +27,62 @@ class Config:
     # --- 模型路径 (与 train_wandb.py 保持一致) ---
     LLM_PATH = "/root/autodl-tmp/huggingface/hub/models--meta-llama--Meta-Llama-3-8B-Instruct/snapshots/8afb486c1db24fe5011ec46dfbe5b5dccdb575c2"
     UEM_PATH = "/root/autodl-tmp/huggingface/hub/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09"
-    CKPT_PATH = "/root/autodl-tmp/PPPUE/DB-Bio/ckpt/best_model_epoch_11" # 示例：指向一个具体的最佳模型目录
+    CKPT_PATH = "/root/autodl-tmp/PPPUE/DB-Bio/ckpt/new_strategy/best_model_epoch_8" # 示例：指向一个具体的最佳模型目录
     
     # --- 数据文件 ---
-    INPUT_DATA_FILE = "/root/autodl-tmp/PPPUE/DB-Bio/benchmark/reprocess/new_strategy/test/anony_test_with_loss.jsonl" 
+    INPUT_DATA_FILE = "/root/autodl-tmp/PPPUE/DB-Bio/benchmark/reprocess/new_strategy/test/anony_test_with_loss_relabel.jsonl" 
     OUTPUT_DIR = "/root/autodl-tmp/PPPUE/DB-Bio/results"
     
     # --- 实验设置 ---
-    EVAL_MODE = "BASELINE" # Options: BASELINE, STANDARD, CLIPPING_ONLY, DP, ORIGINAL_TEXT_BASELINE
-    EPSILON = 100.0
+    EVAL_MODE = "DP" # Options: BASELINE, STANDARD, CLIPPING_ONLY, DP, ORIGINAL_TEXT_BASELINE
+    EPSILON = 50.0
     CLIPPING_NORM = 1.0
     PREFIX_LENGTH = 5
     LIMIT = None # 限制处理的记录数量，None 表示处理全部
 
 # --- 2. 提示词模板和辅助函数 ---
 PROMPT_JUDGE = """
-You are a highly precise evaluation expert. Your task is to determine if the "Generated Answer" correctly identifies the "Ground Truth Profession". Output your final verdict as a single word: "Correct" or "Incorrect".
+You are a highly precise evaluation expert with a deep understanding of professional roles and their nuances.
+
+Your task is to strictly determine if the "Generated Answer" correctly identifies the "Ground Truth Profession".
+
+A "Generated Answer" is considered **"Correct"** only if it meets one of the following criteria:
+1.  It is an **exact match** with the "Ground Truth Profession".
+2.  It is a **clear and direct synonym** (e.g., Footballer for Soccer Player).
+3.  It is **more specific or more precise** than the ground truth, while still being factually accurate based on a person's career (e.g., "Academy Coach" is a more precise current role for a "Soccer Player" who has transitioned).
+
+A "Generated Answer" is **"Incorrect"** if:
+1.  It is a completely different profession.
+2.  It is a **more general or less precise** role (e.g., "Cook" for "Chef").
+
+Output your final verdict as a single word: "Correct" or "Incorrect".
 
 --- EXAMPLES ---
-Ground Truth Profession: "Architect"
-Generated Answer: "The person is likely an Engineer."
-Your verdict: Incorrect
 
+**Example 1: Clear Synonym (Correct)**
 Ground Truth Profession: "Soccer Player"
 Generated Answer: "Based on the text, I believe this person is a Footballer."
 Your verdict: Correct
 
-Ground Truth Profession: "Data Scientist"
-Generated Answer: "Data Analyst."
+**Example 2: More Precise Role (Correct)**
+Ground Truth Profession: "Soccer Player"
+Generated Answer: "His current job is a football coach."
 Your verdict: Correct
 
+**Example 3: Less Precise Role (Incorrect)**
 Ground Truth Profession: "Chef"
 Generated Answer: "Cook"
-Your verdict: Correct
+Your verdict: Incorrect
+
+**Example 4: Related but Different Role (Incorrect)**
+Ground Truth Profession: "Data Scientist"
+Generated Answer: "Data Analyst."
+Your verdict: Incorrect
+
+**Example 5: Clearly Different Profession (Incorrect)**
+Ground Truth Profession: "Architect"
+Generated Answer: "The person is likely an Engineer."
+Your verdict: Incorrect
 --- END EXAMPLES ---
 
 Ground Truth Profession: "{ground_truth}"
@@ -119,8 +142,7 @@ def evaluate_single_entry(
     if config.EVAL_MODE in ["BASELINE", "ORIGINAL_TEXT_BASELINE"]:
         # 根据模式选择提示词内容
         user_prompt = BIO_PROMPT_USER.format(
-            original_biography=original_bio,
-            anonymized_biography=anonymized_bio if config.EVAL_MODE == "BASELINE" else original_bio
+            biography_text=anonymized_bio if config.EVAL_MODE == "BASELINE" else original_bio
         )
         conversation = [
             {"role": "system", "content": BIO_PROMPT_SYSTEM},
@@ -163,8 +185,8 @@ def evaluate_single_entry(
 
         # 3. 手动构建聊天模板的嵌入 (与训练逻辑完全一致)
         embedding_layer = shared_llm.get_input_embeddings()
-        
-        student_user_prompt = BIO_PROMPT_USER.format(original_biography=original_bio, anonymized_biography=anonymized_bio)
+
+        student_user_prompt = BIO_PROMPT_USER.format(biography_text=anonymized_bio)
         system_part = shared_tokenizer.apply_chat_template([{"role": "system", "content": BIO_PROMPT_SYSTEM}], tokenize=False, add_generation_prompt=False)
         user_start_part = shared_tokenizer.apply_chat_template([{"role": "user", "content": ""}], tokenize=False, add_generation_prompt=False).replace(shared_tokenizer.eos_token, '')
         user_content_part = student_user_prompt
@@ -254,7 +276,8 @@ def main(config: Config):
     for line in tqdm(records_to_process, desc="Evaluation"):
         try:
             data = json.loads(line)
-            true_label = data.get("label")
+            # true_label = data.get("label")
+            true_label = data.get("label_accurate") # 使用更准确的标签字段
             if not true_label:
                 tqdm.write(f"Skipping record with missing label: {line.strip()}")
                 continue

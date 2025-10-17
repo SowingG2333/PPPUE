@@ -18,9 +18,9 @@ from typing import List, Dict, Tuple
 LLM_MODEL_PATH = "/root/autodl-tmp/huggingface/hub/models--meta-llama--Meta-Llama-3-8B-Instruct/snapshots/8afb486c1db24fe5011ec46dfbe5b5dccdb575c2"
 UEM_MODEL_PATH = "/root/autodl-tmp/huggingface/hub/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09"
 
-TRAIN_DATA_FILE = "/root/autodl-tmp/PPPUE/DB-Bio/benchmark/reprocess/train.jsonl"
-VAL_DATA_FILE = "/root/autodl-tmp/PPPUE/DB-Bio/benchmark/reprocess/val.jsonl"
-CKPT_DIR = "/root/autodl-tmp/PPPUE/DB-Bio/ckpt"
+TRAIN_DATA_FILE = ""
+VAL_DATA_FILE = ""
+CKPT_DIR = ""
 
 # 训练超参数
 LEARNING_RATE_UEM = 1e-5
@@ -32,7 +32,7 @@ UEM_DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 LLM_DEVICE = "cuda:1" if torch.cuda.is_available() and torch.cuda.device_count() > 1 else UEM_DEVICE
 CLIPPING_NORM = 1.0
 DISTILLATION_TEMP = 1.0
-MAX_GEN_TOKENS = 50  # 传记类别名称可能较长
+MAX_GEN_TOKENS = 20  # 传记类别名称可能较长
 
 # LoRA 配置
 LORA_R = 16
@@ -42,18 +42,21 @@ LORA_TARGET_MODULES = ["q_proj", "k_proj", "v_proj", "o_proj"]
 
 # ----- 传记系统提示词 -----
 BIO_PROMPT_SYSTEM = """
-You are an expert in analyzing biographical texts to identify a person's profession or occupation.
+You are a meticulous biographical analyst, an expert in identifying the most precise and current professional roles of public figures.
 """
 
 BIO_PROMPT_USER = """
-Based on the provided [Original Biography] and [Anonymized Biography], your goal is to identify the person's primary occupation or professional category.
-Your response MUST be a single occupation name (e.g., "Architect", "Tennis Player", "Engineer"), without any additional text or explanation.
+Based on the following [Biography Text], your goal is to identify the person's **single most current and specific primary occupation**.
 
-[Original Biography]:
+**CRITICAL INSTRUCTIONS:**
+1.  **Prioritize the Current Role**: If the text mentions both past and present professions, you MUST identify the most recent one.
+2.  **Be Specific**: Avoid general categories. For example, if the text says someone "is now working as an academy coach at Ipswich Town", your answer should be "Academy Coach", not the more general "Soccer Player" or "Coach".
+3.  **Single Output**: Your response MUST be a single occupation name, without any additional text or explanation.
+
+[Biography Text]:
 {original_biography}
 
-[Anonymized Biography]:
-{anonymized_biography}
+Your Answer:
 """
 
 class BioDataset(Dataset):
@@ -75,7 +78,7 @@ class BioDataset(Dataset):
             "original_text": item['text'],
             "anonymized_text": item['anonymized_text'],
             "loss_description_sentence": item['loss_description_sentence'],
-            "label": item['label']  # 职业标签
+            "label": item['label_accurate']
         }
 
 class BioTrainableEnhancer(torch.nn.Module):
