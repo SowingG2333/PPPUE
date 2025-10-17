@@ -27,15 +27,15 @@ class Config:
     # --- 模型路径 (与 train_wandb.py 保持一致) ---
     LLM_PATH = "/root/autodl-tmp/huggingface/hub/models--meta-llama--Meta-Llama-3-8B-Instruct/snapshots/8afb486c1db24fe5011ec46dfbe5b5dccdb575c2"
     UEM_PATH = "/root/autodl-tmp/huggingface/hub/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09"
-    CKPT_PATH = "" # 示例：指向一个具体的最佳模型目录
+    CKPT_PATH = "/root/autodl-tmp/PPPUE/DB-Bio/ckpt/loose_strategy/best_model_epoch_2" # 示例：指向一个具体的最佳模型目录
     
     # --- 数据文件 ---
     INPUT_DATA_FILE = "" 
     OUTPUT_DIR = "/root/autodl-tmp/PPPUE/DB-Bio/results"
     
     # --- 实验设置 ---
-    EVAL_MODE = "DP" # Options: BASELINE, STANDARD, CLIPPING_ONLY, DP, ORIGINAL_TEXT_BASELINE
-    EPSILON = 50.0
+    EVAL_MODE = "BASELINE" # Options: BASELINE, STANDARD, CLIPPING_ONLY, DP, ORIGINAL_TEXT_BASELINE
+    EPSILON = 100.0
     CLIPPING_NORM = 1.0
     PREFIX_LENGTH = 5
     LIMIT = None # 限制处理的记录数量，None 表示处理全部

@@ -27,15 +27,15 @@ class Config:
     # --- 模型路径 (与 train_wandb.py 保持一致) ---
     LLM_PATH = "/root/autodl-tmp/huggingface/hub/models--meta-llama--Meta-Llama-3-8B-Instruct/snapshots/8afb486c1db24fe5011ec46dfbe5b5dccdb575c2"
     UEM_PATH = "/root/autodl-tmp/huggingface/hub/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09"
-    CKPT_PATH = ""
+    CKPT_PATH = "/root/autodl-tmp/PPPUE/DB-Bio/ckpt/strict_strategy/best_model_epoch_8"
     
     # --- 数据文件 ---
-    INPUT_DATA_FILE = "" 
-    OUTPUT_DIR = "/root/autodl-tmp/PPPUE/DB-Bio/results"
+    INPUT_DATA_FILE = "/root/autodl-tmp/PPPUE/DB-Bio/benchmark/reprocess/strict_strategy/test/anony_test_with_loss_relabel.jsonl" 
+    OUTPUT_DIR = "/root/autodl-tmp/PPPUE/DB-Bio/results/strict_strategy/score"
     
     # --- 实验设置 ---
     EVAL_MODE = "DP" # Options: BASELINE, STANDARD, CLIPPING_ONLY, DP, ORIGINAL_TEXT_BASELINE
-    EPSILON = 50.0
+    EPSILON = 200.0
     CLIPPING_NORM = 1.0
     PREFIX_LENGTH = 5
     LIMIT = None # 限制处理的记录数量，None 表示处理全部
@@ -48,7 +48,7 @@ Task: Your goal is to evaluate the quality of a "Generated Answer" regarding a p
 
 The "Generated Answer" was produced by an AI that only saw an ANONYMIZED version of the text. Your evaluation must focus on **how well the AI's answer reflects the specific, nuanced, and current information present only in the [Original Text]**.
 
-Please rate the "Generated Answer" on a scale of 1 to 10 based on the rubric below, and then provide a brief justification for your score. Output ONLY in the following JSON format.
+Please rate the "Generated Answer" on a scale of 1 to 10 based on the rubric below. **Output ONLY the integer score and nothing else.**
 
 **SCORING RUBRIC (10-Point Scale):**
 * **1-2 (Incorrect)**: The answer is completely wrong or irrelevant.
@@ -59,45 +59,33 @@ Please rate the "Generated Answer" on a scale of 1 to 10 based on the rubric bel
 
 --- EXAMPLES ---
 
-**Example 1: Perfect Recovery**
+**Example 1:**
 [Original Text]: "Alan Desmond Lee is a former footballer who played as a striker; he is now working as an academy coach at Ipswich Town."
 [Ground Truth Profession]: "Academy Coach"
 [Generated Answer]: "Academy Coach"
-Your JSON Output:
-{
-  "score": 10,
-  "justification": "The model achieved a perfect score by identifying the most current and specific role ('Academy Coach'), which required recovering precise information that was absent in the anonymized text."
-}
+Your Output:
+10
 
-**Example 2: Good Recovery (Past Profession)**
+**Example 2:**
 [Original Text]: "Alan Desmond Lee is a former footballer who played as a striker; he is now working as an academy coach at Ipswich Town."
 [Ground Truth Profession]: "Academy Coach"
 [Generated Answer]: "Soccer Player"
-Your JSON Output:
-{
-  "score": 7,
-  "justification": "The model correctly identified a significant past profession ('Soccer Player'), showing good information recovery, but failed to identify the more precise and current role of 'Academy Coach'."
-}
+Your Output:
+7
 
-**Example 3: Correct Generalization (Lacks Specificity)**
+**Example 3:**
 [Original Text]: "As a structural engineer, my marriage is like a well-oiled piece of intricate structural machinery..."
 [Ground Truth Profession]: "structural engineer"
 [Generated Answer]: "Engineer"
-Your JSON Output:
-{
-  "score": 6,
-  "justification": "The model provided a correct but general category ('Engineer'). It successfully identified the field but missed the key specific detail ('structural') which was present in the original text, indicating only partial information recovery."
-}
+Your Output:
+6
 
-**Example 4: Weakly Related**
+**Example 4:**
 [Original Text]: "As a data scientist, I build predictive models..."
 [Ground Truth Profession]: "Data Scientist"
 [Generated Answer]: "Data Analyst"
-Your JSON Output:
-{
-  "score": 4,
-  "justification": "The answer 'Data Analyst' is in a related field but is a distinct and incorrect role. It shows a shallow understanding without recovering the specific nature of the user's work."
-}
+Your Output:
+4
 --- END EXAMPLES ---
 
 [Original Text]:
@@ -109,7 +97,7 @@ Your JSON Output:
 [Generated Answer]:
 {generated_answer}
 
-Your JSON Output:
+Your Output:
 """
 
 def generate_api_response(client: OpenAI, model: str, messages: List[Dict], temperature: float) -> str:
@@ -145,7 +133,7 @@ def judge_prediction(generated_answer: str, ground_truth_label: str, original_te
         ground_truth_label=ground_truth_label, 
         generated_answer=generated_answer
     )
-    system_message = "You are a highly discerning evaluation expert with deep contextual understanding. You must only respond in the specified JSON format."
+    system_message = "You are a highly discerning evaluation expert. You must only respond with a single integer score from 1 to 10."
     
     verdict_str = generate_api_response(
         judge_client, 
@@ -159,24 +147,14 @@ def judge_prediction(generated_answer: str, ground_truth_label: str, original_te
         return {"score": 1, "justification": "API call failed."}
 
     try:
-        # Clean the string to better handle potential markdown code blocks
-        if verdict_str.startswith("```json"):
-            verdict_str = verdict_str[7:-3].strip()
-        
-        verdict_json = json.loads(verdict_str)
-        score = verdict_json.get("score")
-        justification = verdict_json.get("justification")
+        score = int(verdict_str)
+        if not 1 <= score <= 10:
+            raise ValueError("Score is out of the valid 1-10 range.")
+        return {"score": score, "justification": "N/A (direct score)"}
 
-        if score is None or not isinstance(score, (int, float)):
-            raise ValueError("Score is missing or not a number.")
-        if justification is None:
-             justification = "No justification provided."
-             
-        return {"score": int(score), "justification": str(justification)}
-
-    except (json.JSONDecodeError, ValueError) as e:
-        tqdm.write(f"  - ERROR parsing judge response: {e}. Raw response: '{verdict_str}'")
-        return {"score": 1, "justification": f"Failed to parse JSON response. Raw: {verdict_str}"}
+    except (ValueError, TypeError):
+        tqdm.write(f"  - ERROR parsing judge score. Raw response: '{verdict_str}'")
+        return {"score": 1, "justification": f"Failed to parse integer score. Raw: {verdict_str}"}
 
 # --- 3. 评估模块 ---
 @torch.no_grad()

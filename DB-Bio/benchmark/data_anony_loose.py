@@ -17,6 +17,8 @@ import json
 import argparse
 import sys
 import unicodedata
+from functools import partial
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from typing import List, Dict, Tuple, Any
 from openai import OpenAI
@@ -250,6 +252,40 @@ def adversarial_anonymization(
     }
 
 
+def process_record(data: Dict, k: int, max_iterations: int, model: str, client: OpenAI) -> Dict:
+    """
+    处理单个数据记录的函数，用于并行化。
+    """
+    try:
+        original_text = data.get("text")
+        person_name = data.get("people")
+
+        if not original_text or not person_name:
+            print(f"Skipping record due to missing 'text' or 'people' field: {data}")
+            return None
+
+        # 运行核心匿名化功能
+        anonymized_text, meta = adversarial_anonymization(
+            original_text=original_text,
+            true_identity=person_name,
+            k=k,
+            max_iterations=max_iterations,
+            model=model,
+            client=client
+        )
+
+        # 添加新字段
+        data["anonymized_text"] = anonymized_text
+        data["anonymization_meta"] = meta
+        return data
+
+    except Exception as e:
+        print(f"Error processing record for '{data.get('people')}': {e}")
+        # 记录错误信息以便调试
+        data["anonymization_meta"] = {"status": "processing_error", "error": str(e)}
+        return data
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Anonymize text data from a JSONL file using an adversarial LLM loop."
@@ -314,6 +350,12 @@ def main():
         default=None,
         help="Only process the first N records from input_file."
     ) # 处理行数限制
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=4,
+        help="Number of parallel workers to use (default: 4)."
+    ) # 并行工作线程数
     args = parser.parse_args() # 解析命令行参数
 
     # 允许通过命令行覆盖 client 配置
@@ -328,62 +370,67 @@ def main():
             print(f"Error: Failed to reinitialize OpenAI client with provided args: {e}")
             sys.exit(1)
 
-    # 获取 tqdm 进度条的总行数
+    # 读取所有待处理的行
+    records = []
     try:
         with open(args.input_file, 'r', encoding='utf-8') as f:
-            num_lines = sum(1 for line in f)
+            for i, line in enumerate(f):
+                if args.limit and i >= args.limit:
+                    break
+                try:
+                    records.append(json.loads(line))
+                except json.JSONDecodeError:
+                    print(f"Skipping malformed JSON line: {line.strip()}")
     except FileNotFoundError:
         print(f"Error: Input file not found at '{args.input_file}'")
         sys.exit(1)
 
-    total_to_process = min(num_lines, args.limit) if args.limit else num_lines # 计算总处理行数（如果有限制则取较小值）
-    print(f"Starting processing for {total_to_process} records from '{args.input_file}'...")
+    total_to_process = len(records)
+    print(f"Starting processing for {total_to_process} records from '{args.input_file}' with {args.workers} workers...")
 
     # 可选的成功/失败单独输出文件
     success_out = open(args.success_file, 'w', encoding='utf-8') if args.success_file else None
     failed_out = open(args.failed_file, 'w', encoding='utf-8') if args.failed_file else None
 
-    # 处理输入文件并写入输出文件
-    with open(args.input_file, 'r', encoding='utf-8') as infile, \
+    # 使用 ThreadPoolExecutor 并行处理
+    with ThreadPoolExecutor(max_workers=args.workers) as executor, \
          open(args.output_file, 'w', encoding='utf-8') as outfile:
 
-        # 处理每一行数据
-        for idx, line in tqdm(enumerate(infile, 1), total=total_to_process, desc="Processing data"):
-            if args.limit and idx > args.limit: # 达到限制行数则停止
-                break
-            try: # 解析JSON
-                data = json.loads(line)
-                original_text = data.get("text")
-                person_name = data.get("people")
+        # 创建一个 partial 函数，预先填充固定参数
+        process_func = partial(
+            process_record,
+            k=args.k,
+            max_iterations=args.max_iterations,
+            model=args.model,
+            client=client
+        )
 
-                if not original_text or not person_name: # 跳过缺少必要字段的行
-                    print(f"Skipping line due to missing 'text' or 'people' field: {line.strip()}")
-                    continue
+        # 提交所有任务
+        future_to_record = {executor.submit(process_func, record): record for record in records}
 
-                # 运行核心匿名化功能
-                anonymized_text, meta = adversarial_anonymization(
-                    original_text=original_text,
-                    true_identity=person_name,
-                    k=args.k,
-                    max_iterations=args.max_iterations,
-                    model=args.model,
-                    client=client
-                )
+        # 使用 tqdm 显示进度，并在任务完成时处理结果
+        for future in tqdm(as_completed(future_to_record), total=total_to_process, desc="Processing data"):
+            try:
+                processed_data = future.result()
+                if processed_data:
+                    outfile.write(json.dumps(processed_data, ensure_ascii=False) + '\n')
 
-                # 添加新字段并写入输出文件
-                data["anonymized_text"] = anonymized_text
-                data["anonymization_meta"] = meta
-                outfile.write(json.dumps(data, ensure_ascii=False) + '\n')
+                    meta = processed_data.get("anonymization_meta", {})
+                    # 额外写入成功/失败jsonl（可选）
+                    if success_out and meta.get("status") == "success":
+                        success_out.write(json.dumps(processed_data, ensure_ascii=False) + '\n')
+                    if failed_out and meta.get("status") in ("max_iterations_reached", "api_error", "processing_error"):
+                        failed_out.write(json.dumps(processed_data, ensure_ascii=False) + '\n')
 
-                # 额外写入成功/失败jsonl（可选）
-                if success_out and meta.get("status") == "success":
-                    success_out.write(json.dumps(data, ensure_ascii=False) + '\n')
-                if failed_out and meta.get("status") in ("max_iterations_reached", "api_error"):
-                    failed_out.write(json.dumps(data, ensure_ascii=False) + '\n')
+            except Exception as exc:
+                # 获取原始记录以便记录错误
+                original_record = future_to_record[future]
+                print(f"An exception occurred while processing record for '{original_record.get('people')}': {exc}")
+                # 将错误信息写入失败文件
+                if failed_out:
+                    original_record["anonymization_meta"] = {"status": "future_exception", "error": str(exc)}
+                    failed_out.write(json.dumps(original_record, ensure_ascii=False) + '\n')
 
-            except json.JSONDecodeError:
-                print(f"Skipping malformed JSON line: {line.strip()}")
-                continue
 
     if success_out:
         success_out.close()
