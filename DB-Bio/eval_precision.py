@@ -11,7 +11,7 @@ from openai import OpenAI
 from torch.cuda.amp import autocast
 
 # 从训练脚本中导入模型定义和提示词
-from train_wandb import BioTrainableEnhancer, BIO_PROMPT_SYSTEM, BIO_PROMPT_USER
+from train import BioTrainableEnhancer, BIO_PROMPT_SYSTEM, BIO_PROMPT_USER
 
 # --- 1. 配置类 ---
 class Config:

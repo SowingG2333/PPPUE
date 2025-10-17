@@ -13,26 +13,27 @@ from torch.cuda.amp import autocast
 from transformers import AutoModel, AutoTokenizer, XLMRobertaTokenizer
 from peft import LoraConfig, get_peft_model, TaskType
 from typing import List, Dict, Tuple
+import wandb
 
 # --- CONFIGURATION VARIABLES --- #
 LLM_MODEL_PATH = "/root/autodl-tmp/huggingface/hub/models--meta-llama--Meta-Llama-3-8B-Instruct/snapshots/8afb486c1db24fe5011ec46dfbe5b5dccdb575c2"
 UEM_MODEL_PATH = "/root/autodl-tmp/huggingface/hub/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09"
 
-TRAIN_DATA_FILE = ""
-VAL_DATA_FILE = ""
-CKPT_DIR = ""
+TRAIN_DATA_FILE = "/root/autodl-tmp/PPPUE/DB-Bio/benchmark/reprocess/new_strategy/train/train.jsonl"
+VAL_DATA_FILE = "/root/autodl-tmp/PPPUE/DB-Bio/benchmark/reprocess/new_strategy/train/val.jsonl"
+CKPT_DIR = "/root/autodl-tmp/PPPUE/DB-Bio/ckpt/new_strategy"
 
 # 训练超参数
-LEARNING_RATE_UEM = 1e-5
-LEARNING_RATE_LORA = 1e-4
-EPOCHS = 100
+LEARNING_RATE_UEM = 1e-6
+LEARNING_RATE_LORA = 1e-5
+EPOCHS = 50
 BATCH_SIZE = 1
 PREFIX_LENGTH = 5
 UEM_DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 LLM_DEVICE = "cuda:1" if torch.cuda.is_available() and torch.cuda.device_count() > 1 else UEM_DEVICE
 CLIPPING_NORM = 1.0
 DISTILLATION_TEMP = 1.0
-MAX_GEN_TOKENS = 20  # 传记类别名称可能较长
+MAX_GEN_TOKENS = 20
 
 # LoRA 配置
 LORA_R = 16
@@ -54,7 +55,7 @@ Based on the following [Biography Text], your goal is to identify the person's *
 3.  **Single Output**: Your response MUST be a single occupation name, without any additional text or explanation.
 
 [Biography Text]:
-{original_biography}
+{biography_text}
 
 Your Answer:
 """
@@ -106,11 +107,9 @@ class BioTrainableEnhancer(torch.nn.Module):
     def get_teacher_logits(self, original_texts: List[str], anonymized_texts: List[str]) -> Tuple[torch.Tensor, torch.Tensor]:
         """使用教师模型生成目标序列和 logits"""
         original_bio = original_texts[0]
-        anonymized_bio = anonymized_texts[0]
 
         teacher_user_prompt = BIO_PROMPT_USER.format(
-            original_biography=original_bio,
-            anonymized_biography=anonymized_bio
+            biography_text=original_bio
         )
         teacher_conversation = [
             {"role": "system", "content": BIO_PROMPT_SYSTEM},
@@ -146,7 +145,6 @@ class BioTrainableEnhancer(torch.nn.Module):
 
     def forward(self,
                 loss_description_sentences: List[str],
-                original_texts: List[str],
                 anonymized_texts: List[str],
                 logits_teacher: torch.Tensor,
                 target_ids: torch.Tensor) -> torch.Tensor:
@@ -179,8 +177,7 @@ class BioTrainableEnhancer(torch.nn.Module):
         embedding_layer = self.llm_student.get_input_embeddings()
 
         student_user_prompt = BIO_PROMPT_USER.format(
-            original_biography=original_texts[0],
-            anonymized_biography=anonymized_texts[0]
+            biography_text=anonymized_texts[0]
         )
 
         system_part = self.llm_tokenizer.apply_chat_template(
@@ -294,7 +291,6 @@ def evaluate(model, data_loader):
                 
             loss = model(
                 loss_description_sentences=batch['loss_description_sentence'],
-                original_texts=batch['original_text'],
                 anonymized_texts=batch['anonymized_text'],
                 logits_teacher=logits_teacher,
                 target_ids=target_ids
@@ -311,6 +307,25 @@ def evaluate(model, data_loader):
 def main():
     """主函数"""
     os.makedirs(CKPT_DIR, exist_ok=True)
+
+    # --- WANDB 初始化 ---
+    wandb.init(
+        project="PPPUE-DB-Bio-Distillation",
+        config={
+            "learning_rate_uem": LEARNING_RATE_UEM,
+            "learning_rate_lora": LEARNING_RATE_LORA,
+            "epochs": EPOCHS,
+            "batch_size": BATCH_SIZE,
+            "prefix_length": PREFIX_LENGTH,
+            "clipping_norm": CLIPPING_NORM,
+            "distillation_temp": DISTILLATION_TEMP,
+            "lora_r": LORA_R,
+            "lora_alpha": LORA_ALPHA,
+            "lora_dropout": LORA_DROPOUT,
+            "llm_model": LLM_MODEL_PATH,
+            "uem_model": UEM_MODEL_PATH,
+        }
+    )
 
     print(f"Using UEM_DEVICE: {UEM_DEVICE} and LLM_DEVICE: {LLM_DEVICE}")
     print(f"Checkpoints will be saved to: {CKPT_DIR}")
@@ -406,7 +421,6 @@ def main():
             optimizer.zero_grad()
             loss = model(
                 loss_description_sentences=batch['loss_description_sentence'],
-                original_texts=batch['original_text'],
                 anonymized_texts=batch['anonymized_text'],
                 logits_teacher=logits_teacher,
                 target_ids=target_ids
@@ -429,6 +443,15 @@ def main():
         print(f"Epoch {epoch + 1} | Train Loss: {avg_train_loss:.6f} | Val Loss: {val_loss:.6f}")
         print(f"Current LR - UEM: {optimizer.param_groups[0]['lr']:.2e}, LoRA: {optimizer.param_groups[2]['lr']:.2e}")
 
+        # --- WANDB 日志记录 ---
+        wandb.log({
+            "epoch": epoch + 1,
+            "train_loss": avg_train_loss,
+            "val_loss": val_loss,
+            "lr_uem": optimizer.param_groups[0]['lr'],
+            "lr_lora": optimizer.param_groups[2]['lr']
+        })
+
         # 保存最佳模型
         if val_loss < best_val_loss:
             best_val_loss = val_loss
@@ -449,6 +472,7 @@ def main():
             print(f"Saved decoupled model components to {epoch_ckpt_dir}")
 
     print("Training complete.")
+    wandb.finish()
 
 if __name__ == "__main__":
     main()
