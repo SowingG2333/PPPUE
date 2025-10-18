@@ -24,21 +24,21 @@ class Config:
     DEEPSEEK_API_BASE = "https://api.deepseek.com/v1"
     JUDGE_MODEL_NAME = "deepseek-chat"
 
-    # --- 模型路径 (与 train_wandb.py 保持一致) ---
+    # --- 模型路径 ---
     LLM_PATH = "/root/autodl-tmp/huggingface/hub/models--meta-llama--Meta-Llama-3-8B-Instruct/snapshots/8afb486c1db24fe5011ec46dfbe5b5dccdb575c2"
     UEM_PATH = "/root/autodl-tmp/huggingface/hub/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09"
-    CKPT_PATH = "/root/autodl-tmp/PPPUE/DB-Bio/ckpt/strict_strategy/best_model_epoch_8"
+    CKPT_PATH = ""
     
     # --- 数据文件 ---
-    INPUT_DATA_FILE = "/root/autodl-tmp/PPPUE/DB-Bio/benchmark/reprocess/strict_strategy/test/anony_test_with_loss_relabel.jsonl" 
+    INPUT_DATA_FILE = "" 
     OUTPUT_DIR = "/root/autodl-tmp/PPPUE/DB-Bio/results/strict_strategy/score"
     
     # --- 实验设置 ---
-    EVAL_MODE = "DP" # Options: BASELINE, STANDARD, CLIPPING_ONLY, DP, ORIGINAL_TEXT_BASELINE
-    EPSILON = 200.0
+    EVAL_MODE = "" # Options: BASELINE, STANDARD, CLIPPING_ONLY, DP, ORIGINAL_TEXT_BASELINE
+    EPSILON = 100.0
     CLIPPING_NORM = 1.0
     PREFIX_LENGTH = 5
-    LIMIT = None # 限制处理的记录数量，None 表示处理全部
+    LIMIT = None
 
 # --- 2. 提示词模板和辅助函数 ---
 PROMPT_JUDGE = """
@@ -52,37 +52,33 @@ Please rate the "Generated Answer" on a scale of 1 to 10 based on the rubric bel
 
 **SCORING RUBRIC (10-Point Scale):**
 * **1-2 (Incorrect)**: The answer is completely wrong or irrelevant.
-* **3-4 (Weakly Related)**: The answer is in a related but incorrect field (e.g., "Engineer" for an "Architect").
-* **5-6 (Correct Generalization)**: The answer provides a correct but overly general category. This is a plausible guess that could be made from the anonymized text alone, without recovering specific details.
-* **7-8 (Good Recovery)**: The answer correctly identifies a significant *past* profession or a very close synonym, demonstrating some information recovery, but misses the most current or precise role.
-* **9-10 (Excellent Recovery)**: The answer is highly specific and correctly identifies the person's **primary and most current** profession. A score of 10 indicates a perfect, precise match that could only be achieved by successfully recovering critical information lost during anonymization.
+* **3-4 (Weakly Related)**: The answer is in a related but incorrect field.
+* **5-6 (Correct Generalization)**: The answer provides a correct but overly general category.
+* **7-8 (Good Recovery)**: The answer correctly identifies a significant *past* profession or a very close synonym, but misses the most current or precise role.
+* **9-10 (Excellent Recovery)**: The answer is highly specific and correctly identifies the person's **primary and most current** profession.
 
 --- EXAMPLES ---
 
 **Example 1:**
 [Original Text]: "Alan Desmond Lee is a former footballer who played as a striker; he is now working as an academy coach at Ipswich Town."
-[Ground Truth Profession]: "Academy Coach"
 [Generated Answer]: "Academy Coach"
 Your Output:
 10
 
 **Example 2:**
 [Original Text]: "Alan Desmond Lee is a former footballer who played as a striker; he is now working as an academy coach at Ipswich Town."
-[Ground Truth Profession]: "Academy Coach"
 [Generated Answer]: "Soccer Player"
 Your Output:
 7
 
 **Example 3:**
 [Original Text]: "As a structural engineer, my marriage is like a well-oiled piece of intricate structural machinery..."
-[Ground Truth Profession]: "structural engineer"
 [Generated Answer]: "Engineer"
 Your Output:
 6
 
 **Example 4:**
 [Original Text]: "As a data scientist, I build predictive models..."
-[Ground Truth Profession]: "Data Scientist"
 [Generated Answer]: "Data Analyst"
 Your Output:
 4
@@ -90,9 +86,6 @@ Your Output:
 
 [Original Text]:
 {original_text}
-
-[Ground Truth Profession]:
-{ground_truth_label}
 
 [Generated Answer]:
 {generated_answer}
@@ -130,7 +123,7 @@ def save_results(config: Config, metrics: Dict, samples: List[Dict]):
 def judge_prediction(generated_answer: str, ground_truth_label: str, original_text: str, judge_client: OpenAI, config: Config) -> Dict[str, Any]:
     judge_prompt = PROMPT_JUDGE.format(
         original_text=original_text,
-        ground_truth_label=ground_truth_label, 
+        # ground_truth_label=ground_truth_label, # 暂时不再使用标签进行评估
         generated_answer=generated_answer
     )
     system_message = "You are a highly discerning evaluation expert. You must only respond with a single integer score from 1 to 10."

@@ -59,10 +59,6 @@ Ground Truth Profession: "Soccer Player"
 Generated Answer: "Based on the text, I believe this person is a Footballer."
 Your verdict: Correct
 
-Ground Truth Profession: "Data Scientist"
-Generated Answer: "Data Analyst."
-Your verdict: Correct
-
 Ground Truth Profession: "Chef"
 Generated Answer: "Comedy"
 Your verdict: Incorrect
