@@ -18,9 +18,9 @@ from typing import List, Dict, Tuple
 LLM_MODEL_PATH = "/root/autodl-tmp/huggingface/hub/models--meta-llama--Meta-Llama-3-8B-Instruct/snapshots/8afb486c1db24fe5011ec46dfbe5b5dccdb575c2"
 UEM_MODEL_PATH = "/root/autodl-tmp/huggingface/hub/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09"
 
-TRAIN_DATA_FILE = "/root/autodl-tmp/PPPUE/benchmark/reprocess/train/seed_42/train_split.jsonl"
-VAL_DATA_FILE = "/root/autodl-tmp/PPPUE/benchmark/reprocess/train/seed_42/val_split.jsonl"
-CKPT_DIR = "/root/autodl-tmp/PPPUE/ckpt/prefix_lora"  # 修改输出目录名
+TRAIN_DATA_FILE = "/root/autodl-tmp/PPPUE/personalReddit/benchmark/reprocess/train/seed_42/train_split.jsonl"
+VAL_DATA_FILE = "/root/autodl-tmp/PPPUE/personalReddit/benchmark/reprocess/train/seed_42/val_split.jsonl"
+CKPT_DIR = "/root/autodl-tmp/PPPUE/ckpt/prefix_lora"
 
 # 训练超参数
 LEARNING_RATE_UEM = 1e-5  # UEM 和投影层的学习率

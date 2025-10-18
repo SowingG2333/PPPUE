@@ -1,10 +1,10 @@
 {
     "config": {},
     "metrics": {
-        "average_score": 6.903765690376569,
-        "excellent_recovery_rate": 0.3138075313807531,
-        "excellent_recovery_count": 75,
-        "total_score": 1650,
+        "average_score": 7.2343096234309625,
+        "excellent_recovery_rate": 0.3682008368200837,
+        "excellent_recovery_count": 88,
+        "total_score": 1729,
         "total_processed": 239
     },
     "qualitative_samples": [
@@ -14,7 +14,7 @@
             "Loss Description": "The person was a scholar of Roman architecture; founded the Fototeca Unione archive at the American Academy in Rome; and produced a portrait of Béla Bartók that is still used by the New York Times.",
             "True Profession": "Archaeological Photographer",
             "Generated Answer": "Archivist",
-            "Score": 4,
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -23,7 +23,7 @@
             "Loss Description": "The person is Rolf Disch, a German architect who pioneered the Heliotrope and the PlusEnergy concept, and founded Rolf Disch Solar Architecture and the 100% GmbH organization in Freiburg.",
             "True Profession": "Solar architect",
             "Generated Answer": "Founder",
-            "Score": 3,
+            "Score": 4,
             "Justification": "N/A (direct score)"
         },
         {
@@ -41,7 +41,7 @@
             "Loss Description": "The person was a table tennis player who reached round three of the Women's Doubles at the 2004 Summer Olympics with Elke Wosik, won the Europe Top-12 tournament in 2004, and set a German singles championship record in 2005.",
             "True Profession": "Olympic Table Tennis Player",
             "Generated Answer": "Table Tennis Player",
-            "Score": 9,
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -50,7 +50,7 @@
             "Loss Description": "The person was a Democratic U.S. Representative from Georgia named Phillip Mitchell Landrum. He sponsored the Landrum-Griffin Act and authored the Economic Opportunity Act of 1964. He signed \"The Southern Manifesto\" in 1956. Interstate 575 is named for him.",
             "True Profession": "U.S. Representative",
             "Generated Answer": "U.S. Representative",
-            "Score": 10,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -59,7 +59,7 @@
             "Loss Description": "The person was a NASA Mercury Seven astronaut, commanded Apollo 14, was the first American in space, the fifth person to walk on the moon, and hit golf balls on the lunar surface. They served as Chief of the Astronaut Office and was a Rear Admiral.",
             "True Profession": "American astronaut",
             "Generated Answer": "Retired",
-            "Score": 3,
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -68,7 +68,7 @@
             "Loss Description": "The person was a German entomologist who specialised in Lepidoptera and Hesperiidae, was a member of the Entomological Society of Stettin, and authored specific works like \"Verzeichniss der vom... Prof. Dr. R. Buchholz... gesammelten Hesperien\" and \"System der Schmetterlinge.\"",
             "True Profession": "Lepidopterist",
             "Generated Answer": "Entomologist",
-            "Score": 7,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -77,7 +77,7 @@
             "Loss Description": "The person was a striker and academy coach at Ipswich Town, scored 119 goals in 547 Football League appearances, won 10 caps for the Republic of Ireland, and played for Aston Villa, Torquay United, Port Vale, Burnley, Rotherham United, Cardiff City, Crystal Palace, Norwich City, and Huddersfield Town.",
             "True Profession": "Footballer and Coach",
             "Generated Answer": "Academy Coach",
-            "Score": 9,
+            "Score": 10,
             "Justification": "N/A (direct score)"
         },
         {
@@ -86,7 +86,7 @@
             "Loss Description": "The person was a tennis player, one of the \"Four Musketeers\" who won the Davis Cup in 1927. They won 10 Grand Slam doubles titles and two mixed doubles titles at Roland Garros with Suzanne Lenglen. They were ranked World No. 9 in 1927 and were inducted into the International Tennis Hall of Fame.",
             "True Profession": "Doubles Specialist",
             "Generated Answer": "Tennis Player",
-            "Score": 6,
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -94,7 +94,7 @@
             "Anonymized Text": "An individual born in the mid-1980s is a retired professional athlete from the United Kingdom who competed in a team-based discipline. They attained a notable position in international standings and participated in a global sporting competition, where they received recognition alongside a teammate. After starting their career in the early 2000s, they advanced through lower-tier events before competing at the highest level. They appeared in multiple championship matches at this elite tier, achieving success in some of them. During a peak phase, they progressed deep into two premier annual competitions. They were consistently ranked among the leading performers in their country. The person faced a significant health challenge in the early 2010s that required extensive treatment and caused them to miss a full competitive cycle. Following their return to the sport, they moved into organizational roles, initially managing a professional competition before assuming an executive position with the sport's international federation, where they handled participant engagement.",
             "Loss Description": "The person was a tennis player who won a Commonwealth Games silver medal in Men's Doubles, won five ATP Tour doubles titles (Beijing, Montpellier, St Petersburg, Delray Beach, Eastbourne), reached the quarter-finals of Wimbledon and the US Open, and later became Tournament Director of the Aegon Championships and the ATP's Vice-President of Player Relations.",
             "True Profession": "Doubles Tennis Specialist",
-            "Generated Answer": "Executive Director",
+            "Generated Answer": "**Executive Director**",
             "Score": 4,
             "Justification": "N/A (direct score)"
         },
@@ -113,7 +113,7 @@
             "Loss Description": "The person was a United States congressman from Kentucky's 1st Congressional District (1865-1870), a Kentucky judge for the equity and criminal court in the First Judicial District (1856-1860), president of the New Orleans & Ohio Railroad Company (1860-1865), voted against the impeachment of Andrew Johnson (1868), and represented Bernalillo County at the New Mexico Constitutional Convention of 1889, giving the opening address.",
             "True Profession": "Lawyer and Politician",
             "Generated Answer": "Lawyer",
-            "Score": 8,
+            "Score": 6,
             "Justification": "N/A (direct score)"
         },
         {
@@ -122,7 +122,7 @@
             "Loss Description": "The person is a footballer (soccer player) for Blyth Spartans. Specific lost details include: captained the Hartlepool youth team in the Dallas Cup; the ineligible FA Cup match for Bury against Chester City; winning the 2010–11 Supporters Player of the year award at Blyth Spartans; scoring a famous free-kick at Hartlepool United in the FA Cup; and winning the Northumberland Senior Cup.",
             "True Profession": "Footballer",
             "Generated Answer": "Professional Footballer",
-            "Score": 10,
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -131,7 +131,7 @@
             "Loss Description": "The person was a professional baseball player for the Detroit Tigers and Pittsburgh Pirates, nicknamed \"Hammerin' Hank\". He was a first baseman and left fielder, a four-time All-Star, and a two-time AL MVP who won two World Series championships with the Tigers. He was the AL home run leader four times, hit 58 home runs in 1938, and held the AL RBI record for a right-handed batter (183 in 1937). He publicly welcomed Jackie Robinson to the major leagues.",
             "True Profession": "Major League Baseball Player",
             "Generated Answer": "Baseball Player",
-            "Score": 9,
+            "Score": 6,
             "Justification": "N/A (direct score)"
         },
         {
@@ -140,7 +140,7 @@
             "Loss Description": "The person was the Soviet cosmonaut Georgy Mikhaylovich Grechko who flew on Soyuz 17, Soyuz 26, and Soyuz T-14. He worked at Sergei Korolev's design bureau, trained for the Soviet moon programme, worked on Salyut space stations, performed the first spacewalk in an Orlan suit on Salyut 6 EO-1, and co-founded the Association of Space Explorers.",
             "True Profession": "Cosmonaut",
             "Generated Answer": "Academic",
-            "Score": 3,
+            "Score": 4,
             "Justification": "N/A (direct score)"
         },
         {
@@ -158,7 +158,7 @@
             "Loss Description": "The person was an outfielder for the Texas Rangers and Baltimore Orioles in Major League Baseball, drafted in the 13th round in 1974, and concluded his career in the Cleveland Indians farm system.",
             "True Profession": "Former Major League Baseball Outfielder",
             "Generated Answer": "Baseball Player",
-            "Score": 6,
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -167,7 +167,7 @@
             "Loss Description": "The person invented the 'Rocket' life-saving apparatus, an early form of the Breeches buoy, after witnessing the wreck of the Anson frigate.",
             "True Profession": "Inventor",
             "Generated Answer": "Inventor",
-            "Score": 10,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -176,7 +176,7 @@
             "Loss Description": "The person is named Kurt Edward Fishback, noted for portraits of artists. He is the son of photographer Glen Fishback and namesake of Edward Weston. He studied at Sacramento City College, SFAI, Cornell University, and UC Davis (MFA), studying with Robert Arneson, Roy DeForest, William Wiley, and Manuel Neri. He gained initial visibility in ceramic sculpture. He taught at his father's school and now teaches at American River College. His portrait series includes Ansel Adams, Wayne Thiebaud, Judy Chicago, Brett Weston, Jock Sturges, Cornell Capa, André Kertész, Mary Ellen Mark, Chuck Close, and Robert Mapplethorpe. His work is in collections at SFM",
             "True Profession": "Portrait Photographer",
             "Generated Answer": "Professor",
-            "Score": 4,
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -193,8 +193,8 @@
             "Anonymized Text": "An individual born in the 1970s is a former athlete in a team sport. They participated at the collegiate level, earning multiple national honors and helping their team reach several national championship events. After college, they relocated to a major city where they played alongside a family member for a local club team, contributing to multiple league titles. Their athletic style was characterized by quickness and agility, which allowed them to excel in one-on-one situations. This skill earned them recognition on international teams, where they received awards for their performance in global competitions. Their professional career included playing for several teams in a premier outdoor league, where they achieved a record for career points. After a brief retirement, they returned to the sport for one final season. They also had a separate career in a professional indoor league for several years, representing multiple city-based franchises. For over a decade, they have operated a highly successful instructional program for the sport, which has grown to become one of the largest in the country. They were later honored with induction into their sport's national hall of fame. Following their playing career, they held coaching and administrative roles with youth sports organizations.",
             "Loss Description": "The person played lacrosse for the Rochester Rattlers, University of Massachusetts Amherst, and the Baltimore Bayhawks, among others. They were a three-time All-American, World Games MVP in 1994, and the MLL's all-time leading scorer. They ran the Millon International Lacrosse Camps and were inducted into the National Lacrosse Hall of Fame in 2009.",
             "True Profession": "Professional Lacrosse Player",
-            "Generated Answer": "**Owner**",
-            "Score": 1,
+            "Generated Answer": "Business Owner",
+            "Score": 4,
             "Justification": "N/A (direct score)"
         },
         {
@@ -212,7 +212,7 @@
             "Loss Description": "The person was a German painter named Franz Johann Heinrich Nadorp; a historical painter; a member of the \"Nazarenes\"; co-founder of the Roman Künstlerbund (1829) and the German Artists' Union (1845); created an altarpiece \"The Presentation of Jesus in the Temple\" for St. Pancras church; and his estate is in the Museum Wasserburg Anholt and the parish church of St. Pancras.",
             "True Profession": "Nazarene painter",
             "Generated Answer": "Painter",
-            "Score": 6,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -220,8 +220,8 @@
             "Anonymized Text": "An individual born in the mid-1970s pursued a career as a professional athlete in a popular team sport. They began training in their youth and gained recognition, leading to opportunities to compete internationally in South America and later in Western Europe with a club in a major league. Known for their skill and popularity among supporters, their career was unfortunately cut short in the early 2000s due to a serious neurological condition. They also represented their home country in international competitions. Following their retirement, they established an organization dedicated to funding research for the illness they were diagnosed with, which later gained public support through a widespread charitable campaign. They passed away in the mid-2000s, survived by their spouse and two children.",
             "Loss Description": "The person was a Polish football player for VfL Wolfsburg and Atlético Paranaense, played 10 games for the Polish national team scoring one goal, and his foundation was supported by the ALS Ice Bucket Challenge in Germany.",
             "True Profession": "Footballer",
-            "Generated Answer": "Founder",
-            "Score": 4,
+            "Generated Answer": "Footballer",
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -229,7 +229,7 @@
             "Anonymized Text": "An individual with specialized expertise undertook several prolonged assignments in an extreme and isolated setting, including roles with supervisory responsibilities. A notable accomplishment involved completing an exceptionally lengthy continuous period in this context, achieving a new milestone for their country. This person has a sibling who also engaged in comparable work, making their family's dual involvement a rare occurrence. Their career concluded after these significant contributions.",
             "Loss Description": "The person commanded the International Space Station on Expeditions 26, 45, and 46, set the American record for total days in space (382), and completed a 340-day continuous mission.",
             "True Profession": "Retired astronaut",
-            "Generated Answer": "Space Explorer",
+            "Generated Answer": "Space Engineer",
             "Score": 7,
             "Justification": "N/A (direct score)"
         },
@@ -248,7 +248,7 @@
             "Loss Description": "The person was a professional boxer, the first International Boxing Federation Women's World Champion, and won the vacant NZPBA Women's light middleweight title. They competed in the 2002 World Championships in Turkey and won a gold medal at the 2004 Oceania Games.",
             "True Profession": "Professional Boxer",
             "Generated Answer": "Martial Arts Coach",
-            "Score": 4,
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -257,7 +257,7 @@
             "Loss Description": "The person was an architect, a Fellow of the Royal Institute of British Architects, President of the Leicester Society of Architects, and designed the Turkey Cafe, the Synagogue on Highfield Street, the Coronation Buildings (Singer Building), and the Wycliffe Society Cottage Homes for the Blind.",
             "True Profession": "Architect and Politician",
             "Generated Answer": "Architect",
-            "Score": 8,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -266,7 +266,7 @@
             "Loss Description": "The person is a chef who specializes in Indian cooking, founded the catering business Rasoi, The Indian Kitchen, worked at New York University's Department of Food and Nutrition, was executive chef at Dévi in New York City, appeared on Bravo's Top Chef: Masters, and participated in the University of Notre Dame's celebrity chef series.",
             "True Profession": "Indian chef and author",
             "Generated Answer": "Chef",
-            "Score": 9,
+            "Score": 8,
             "Justification": "N/A (direct score)"
         },
         {
@@ -275,7 +275,7 @@
             "Loss Description": "The person is a Chinese wushu practitioner named Hao Zhihua (Patti Li). Specific lost details include: training at the Beijing Sports Academy under Wu Bin; being a member of the Beijing Wushu Team; winning three consecutive National All-Around Champion titles; a unique record of six gold and one silver medal in a single national competition; receiving the \"Ten Best Athletes in China\" award; proficiency in specific forms like long fist, Yang-style and Chen-style t'ai chi, and weapons; attending the Beijing Teacher's College of Physical Education; and running a school in Oakland, California.",
             "True Profession": "Wushu Champion and Instructor",
             "Generated Answer": "Academic Instructor",
-            "Score": 4,
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -283,8 +283,8 @@
             "Anonymized Text": "An individual born in the late 1970s in a coastal city is a professional athlete who competes internationally in a sport. They achieved a significant victory in a regional multi-sport event during the late 2000s while participating in a doubles competition with a teammate. At one point, they held a position in the global rankings for their sport. This person is known for using a particular dominant hand and a common playing technique. Their career included appearances at two separate global sporting competitions, where they participated in individual events. During their first appearance, they were eliminated in an early stage by another competitor. In their second appearance, they advanced past initial matches against opponents from different countries before being eliminated in a subsequent round.",
             "Loss Description": "The person is a Vietnamese table tennis player named Đoàn Kiến Quốc. He won a men's doubles gold medal with Dinh Quang Linh at the 2009 Southeast Asian Games, was ranked 275th by the ITTF, and competed in the men's singles at the 2004 and 2008 Summer Olympics.",
             "True Profession": "Olympic Table Tennis Player",
-            "Generated Answer": "Professional Table Tennis Player",
-            "Score": 9,
+            "Generated Answer": "Table Tennis Player",
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -293,7 +293,7 @@
             "Loss Description": "The person is a Latvian chess Grandmaster who won the Latvian Chess Championship in 2000 and participated in Chess Olympiads in Istanbul, Calvia, Turin, Dresden, and Khanty-Mansiysk.",
             "True Profession": "Chess Grandmaster",
             "Generated Answer": "Chess Player",
-            "Score": 7,
+            "Score": 6,
             "Justification": "N/A (direct score)"
         },
         {
@@ -301,8 +301,8 @@
             "Anonymized Text": "An individual born in the late 1980s is a professional athlete who competes in a team sport at the national level. They began their amateur career in their hometown and progressed through youth divisions, achieving consecutive championships in their sport during their final amateur years. After making their professional debut with one team, they were selected early in a professional draft by another organization. Their career included multiple team transfers through trades and signings over several seasons. They attended a university where they pursued business-related studies before focusing on their athletic career.",
             "Loss Description": "The person is a professional lacrosse player for the Toronto Rock and Kitchener-Waterloo Kodiaks, won back-to-back Minto Cups with the Jr A Northmen, and was drafted 5th overall in the MSL draft and in the second round of the NLL Entry Draft.",
             "True Profession": "Professional Lacrosse Player",
-            "Generated Answer": "Professional Ice Hockey Player",
-            "Score": 2,
+            "Generated Answer": "Professional Lacrosse Player",
+            "Score": 10,
             "Justification": "N/A (direct score)"
         },
         {
@@ -310,7 +310,7 @@
             "Anonymized Text": "An individual born in the late 1970s in a European country is a professional athlete in a competitive sport. They participated in a major international sporting event in the late 2000s and narrowly missed earning a medal in a regional competition. This person has competed in a global multi-sport event after qualifying through a selection process and has achieved victories and defeats in early rounds against other international competitors. They are affiliated with a local sports organization and receive guidance from a coach.",
             "Loss Description": "The person is a Spanish table tennis player who lost the bronze medal at the 2009 Mediterranean Games, was ranked 215th by the ITTF, is a member of the San Sebastian de los Reyes Sports Club, is coached by Alejandro Maldonado, qualified for the 2008 Olympics via the Final World Qualification Tournament in Budapest, and defeated Adel Massaad before losing to Achanta Sharath Kamal.",
             "True Profession": "Olympic Table Tennis Player",
-            "Generated Answer": "Table Tennis Player",
+            "Generated Answer": "Professional Table Tennis Player",
             "Score": 9,
             "Justification": "N/A (direct score)"
         },
@@ -329,7 +329,7 @@
             "Loss Description": "The person was a Nazi sympathiser who met Ulrich von Hassell, the German ambassador to Italy, in 1940 to propose a pact between Britain and Germany. They had the ear of Lord Halifax and potentially Neville Chamberlain, and associated with the Duke of Buccleuch and Lord Brocket. Their influence ended when Winston Churchill became Prime Minister.",
             "True Profession": "Nazi sympathiser",
             "Generated Answer": "Writer",
-            "Score": 4,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -338,7 +338,7 @@
             "Loss Description": "The person is the architect Ben Weese, a member of the Chicago Seven, who co-founded the award-winning firm Weese Seegers Hickey Weese (later Weese Langley Weese).",
             "True Profession": "Chicago Architect",
             "Generated Answer": "Architect",
-            "Score": 6,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -347,7 +347,7 @@
             "Loss Description": "The person is Marianne Horak, specialized in Australian Lepidoptera, particularly phycitine and tortricid moths. They studied scribbly gum moths, discovered eleven new Ogmograptis species, and authored \"The Olethreutine Moths of Australia\". They are the editor-in-chief of Monographs of Australian Lepidoptera, holds roles at the Australian Lepidoptera Research Endowment and the Australian National Insect Collection at CSIRO, and was the first recipient of the J.O. Westwood Medal.",
             "True Profession": "Lepidopterist",
             "Generated Answer": "Editor",
-            "Score": 4,
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -356,7 +356,7 @@
             "Loss Description": "The person is a fashion designer. Specific losses include: the MBE honor, the \"Graffiti Collection\" at the Victoria and Albert Museum, the Fashion and Design Award at the Carlton Multi-Cultural Awards, the AoC Gold Award, and the B-side by Wale store in Hanbury Street.",
             "True Profession": "Fashion Entrepreneur",
             "Generated Answer": "Fashion Designer",
-            "Score": 9,
+            "Score": 10,
             "Justification": "N/A (direct score)"
         },
         {
@@ -365,7 +365,7 @@
             "Loss Description": "The person was an architect named Henry Monheim, a \"Gentile\" (non-Mormon) architect in Salt Lake City, Utah. He was the first president of the Salt Lake City Institute of Architects and partnered with Proudfoot and Bird in the firm Monheim, Bird & Proudfoot. Specific works lost include the Best-Cannon House, Emanuel Kahn House, a carriage house for the Alfred W. McCune Mansion, and the Salt Lake City and County Building, all NRHP-listed.",
             "True Profession": "Architect",
             "Generated Answer": "Architect",
-            "Score": 10,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -374,7 +374,7 @@
             "Loss Description": "The person was a painter influenced by Guido Reni, a pupil of Andrea Sacchi, and a member/director of the Accademia di San Luca. Specific works lost include frescoes for San Carlo al Corso, the Cybo Chapel in Santa Maria del Popolo, and paintings for Santa Caterina a Magnanapoli, Santa Croce in Gerusalemme, Palazzo Buonaccorsi, and Santa Caterina del Formello in Naples.",
             "True Profession": "Italian Baroque painter",
             "Generated Answer": "Painter",
-            "Score": 6,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -400,8 +400,8 @@
             "Anonymized Text": "An individual of mixed Canadian and Caribbean heritage, born in the mid-1980s, achieved early success in a combat sport after beginning training in their mid-teens. They earned recognition in multiple international amateur competitions and secured a continental championship before transitioning to professional competition. A significant period in their career occurred several years later when they won a world title in one weight class and prevailed twice against a prominent rival. This athlete has consistently received high international and regional rankings across multiple weight categories from various sports publications.",
             "Loss Description": "The person is a Muay Thai kickboxer; they beat Kaoklai Kaennorsing for the WPMF World Light Heavyweight title, defeated Joe Schilling twice, and have been ranked by LiverKick.com, MuayThaiAuthority.com, and GLORY.",
             "True Profession": "Muay Thai Kickboxer",
-            "Generated Answer": "Mixed Martial Artist",
-            "Score": 4,
+            "Generated Answer": "Professional Boxer",
+            "Score": 3,
             "Justification": "N/A (direct score)"
         },
         {
@@ -410,7 +410,7 @@
             "Loss Description": "The person was chairman of the Aerospace Corporation; interim president of Thunderbird School of Global Management; U.S. Ambassador to Finland; CEO of the American Management Association; deputy administrator of the Federal Aviation Administration; vice chairman of the U.S. Civil Aeronautics Board; and the first civilian woman to land in an F/A-18 Hornet on an aircraft carrier.",
             "True Profession": "Aerospace Executive",
             "Generated Answer": "**Chairman of the Board**",
-            "Score": 7,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -419,7 +419,7 @@
             "Loss Description": "The person was Adlai Ewing Stevenson II, the 31st Governor of Illinois, the Democratic presidential nominee in 1952 and 1956, and the United States Ambassador to the United Nations.",
             "True Profession": "Governor",
             "Generated Answer": "Diplomat",
-            "Score": 7,
+            "Score": 8,
             "Justification": "N/A (direct score)"
         },
         {
@@ -427,7 +427,7 @@
             "Anonymized Text": "An individual had a long career in public service and diplomacy. They held a series of senior administrative and leadership roles within government bodies. Their work involved significant contributions in areas related to public policy and international relations. They were recognized with a high national honor for their service. In their later career, they served on an international human rights body for two consecutive terms. They also received an honorary degree from a university. They passed away in their mid-80s.",
             "Loss Description": "The person was the Commissioner of Official Languages, Deputy Minister of Communications, Ambassador to Belgium and Luxembourg, and Chief Commissioner of the Canadian Human Rights Commission. They served on the United Nations Commission on Human Rights and was a Companion of the Order of Canada.",
             "True Profession": "Commissioner of Official Languages",
-            "Generated Answer": "**Member of the United Nations Human Rights Commission**",
+            "Generated Answer": "Member of the United Nations Human Rights Commission",
             "Score": 7,
             "Justification": "N/A (direct score)"
         },
@@ -455,7 +455,7 @@
             "Loss Description": "The person was a professional basketball player in the NBA, specifically a guard for the Los Angeles Lakers, Philadelphia 76ers, Baltimore/Capital Bullets, Seattle SuperSonics, and Detroit Pistons. He was an All-NBA Second Team honoree in 1972 and co-founded the National Basketball Retired Players Association.",
             "True Profession": "NBA Player",
             "Generated Answer": "Former Professional Basketball Player",
-            "Score": 9,
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -473,7 +473,7 @@
             "Loss Description": "The person was a footballer for San Lorenzo and Racing Club, represented Argentina at the 1974 World Cup, and later managed clubs including San Miguel and Atlanta. In politics, they served as the Justicialist Party mayor of José Clemente Paz and was a candidate for national senator for the New Party.",
             "True Profession": "Former footballer and politician",
             "Generated Answer": "Politician",
-            "Score": 7,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -491,7 +491,7 @@
             "Loss Description": "The person was a racing driver from Australia, specifically in Touring car, Sports car, and open wheeler racing. They were the European F5000 champion, participated in nine Formula One World Championship Grands Prix, and achieved specific results (e.g., 3rd at the 1965 Mediterranean Grand Prix). They also consistently raced in the Tasman Series against drivers like Jim Clark, Graham Hill, and Jochen Rindt.",
             "True Profession": "Racing Driver",
             "Generated Answer": "Racing Driver",
-            "Score": 10,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -499,8 +499,8 @@
             "Anonymized Text": "An individual born in the latter part of the 20th century demonstrated early success in a competitive athletic activity, achieving multiple youth-level accomplishments with family involvement. Following a brief period of participation in higher education athletics where they earned a notable national honor, they were chosen at the top of a professional selection process. Their professional start was delayed by a health-related absence. Upon commencing their career, they received multiple forms of recognition for their initial performance period, including a debut-season honor and a showcase achievement. Subsequently, a prominent publication retrospectively highlighted their early professional period as noteworthy within their domain.",
             "Loss Description": "The person is Blake Griffin, a professional basketball player for the Los Angeles Clippers. He was the Consensus National Player of the Year at the University of Oklahoma, was the first overall pick in the 2009 NBA draft, is a five-time NBA All-Star, won the NBA Slam Dunk Contest, was named NBA Rookie of the Year, and was cited by Sports Illustrated as one of the NBA's 15 Greatest Rookies.",
             "True Profession": "NBA Player",
-            "Generated Answer": "Professional Baseball Player",
-            "Score": 1,
+            "Generated Answer": "Professional Basketball Player",
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -518,7 +518,7 @@
             "Loss Description": "The person was Picture Editor at the Washington Post (1990-2006), was president of the National Press Photographers Association in 1992, and was the first female photojournalist for the Gainesville Sun (1971) and Miami Herald (1976). They received the Joseph Costa Award (1998) and Morris Berman NPPA Citation (2003).",
             "True Profession": "Photojournalist",
             "Generated Answer": "Photographer",
-            "Score": 7,
+            "Score": 6,
             "Justification": "N/A (direct score)"
         },
         {
@@ -526,8 +526,8 @@
             "Anonymized Text": "An individual is a researcher employed by a national space agency, focusing on the study of stellar phenomena. They hold a leadership role in a major scientific program and have contributed to multiple space-based observation projects, including past, current, and future missions. Their previous work involved a scientific instrument deployed from a reusable spacecraft to investigate stellar emissions and plasma flows. Their career includes roles in education, scientific research, program management, and hardware development for space missions. They are recognized in their field for their research contributions and have authored numerous scientific papers.",
             "Loss Description": "The person is Madhulika (Lika) Guhathakurta, an astrophysicist with NASA's Heliophysics Science Division. She is the lead program scientist for the Living With a Star initiative and for the Solar Dynamics Observatory (SDO), Van Allen Probes, STEREO, Solar Probe Plus, and Solar Orbiter missions. She was previously program scientist for the SPARTAN-201 instrument on specific Space Shuttle missions (STS-56, STS-69, STS-77, STS-87, STS-95). Her work is in heliophysics, with over 70 publications.",
             "True Profession": "Heliophysicist",
-            "Generated Answer": "**Astrophysicist**",
-            "Score": 8,
+            "Generated Answer": "**Primary Occupation:** Astronaut",
+            "Score": 2,
             "Justification": "N/A (direct score)"
         },
         {
@@ -536,7 +536,7 @@
             "Loss Description": "The person is Tony Resch, a lacrosse player and coach. He coached the Philadelphia Wings (NLL) to four Championships, was inducted into the NLL Hall of Fame in 2008, coached the Philadelphia Barrage (MLL), was a two-time All-American at Yale University, and won a gold medal with Team USA at the 1990 World Lacrosse Championship in Perth. He is a guidance counselor and assistant lacrosse coach at La Salle College High School.",
             "True Profession": "Lacrosse Coach",
             "Generated Answer": "School Counselor",
-            "Score": 4,
+            "Score": 8,
             "Justification": "N/A (direct score)"
         },
         {
@@ -545,7 +545,7 @@
             "Loss Description": "The person studied at Altos de Chavón and Parsons School of Design, opened a store and school on Muñoz Rivera Avenue in San Juan, won the IXA and Paoli awards in 2004, and presented collections at the Midtown Exhibition Center, Olympus Fashion Week, and New York Fashion Week at Bryant Park Grill.",
             "True Profession": "Fashion Designer and Entrepreneur",
             "Generated Answer": "Fashion Designer",
-            "Score": 9,
+            "Score": 10,
             "Justification": "N/A (direct score)"
         },
         {
@@ -554,7 +554,7 @@
             "Loss Description": "The person is Vlastimil Hort, a chess Grandmaster. He reached the 1977–78 Candidates Tournament, won Czechoslovak national championships, represented the \"World\" team against the USSR in 1970, and later won the German national championship.",
             "True Profession": "Chess Grandmaster",
             "Generated Answer": "Chess Player",
-            "Score": 7,
+            "Score": 6,
             "Justification": "N/A (direct score)"
         },
         {
@@ -563,7 +563,7 @@
             "Loss Description": "The person is a pianist who debuted with Mendelssohn's Piano Concerto No. 1 with the Simon Bolivar Orchestra, won First Prize at the Young Soloist Competition of the Symphonic Orchestra of Venezuela, studied at the Liszt Music Academy with Ferenc Rados, performed at the 250th Anniversary of J.S. Bach concert at the Wartburg, and is the only Venezuelan pianist to have performed Bach's 6 Partitas and the Well Tempered Clavier Book I from memory. A prelude was dedicated to them by composer Gonzalo Castellanos Yumar.",
             "True Profession": "Classical Pianist",
             "Generated Answer": "Pianist",
-            "Score": 9,
+            "Score": 10,
             "Justification": "N/A (direct score)"
         },
         {
@@ -572,7 +572,7 @@
             "Loss Description": "The person played basketball for St. Francis Brooklyn, was the 2015 unanimous NEC Player of the Year, and set the NEC all-time rebounds record.",
             "True Profession": "Professional Basketball Player",
             "Generated Answer": "Professional Basketball Player",
-            "Score": 10,
+            "Score": 8,
             "Justification": "N/A (direct score)"
         },
         {
@@ -580,8 +580,8 @@
             "Anonymized Text": "An individual from a European country had a career as a professional athlete in a competitive sport during the late 20th century. They achieved success in various events, securing high placements in well-known competitions and earning recognition for their integrity regarding performance-enhancing substances. After retiring from active participation, they moved into organizational roles within sports administration, contributing to event coordination and holding positions with national and international sports federations during major global sporting occasions.",
             "Loss Description": "The person was a professional cyclist named Charly Mottet who won the Tour de Romandie in 1990, finished 2nd in the 1990 Giro d'Italia, and had specific stage wins and placements in the Tour de France. Post-retirement, they worked on the Critérium du Dauphiné and was appointed sports manager of the Grand Prix Cycliste de Québec and Montréal. They also served as a selector for the French national team and as a UCI technical delegate for the Olympics.",
             "True Profession": "Professional cyclist",
-            "Generated Answer": "**F1 Team Manager**",
-            "Score": 2,
+            "Generated Answer": "President",
+            "Score": 1,
             "Justification": "N/A (direct score)"
         },
         {
@@ -599,7 +599,7 @@
             "Loss Description": "The person was a Honduran table tennis player who competed at the 2004 Summer Olympics, won three bronze medals at the Central American and Caribbean Games, and was the first Central American table tennis player to achieve this.",
             "True Profession": "Olympic Table Tennis Player",
             "Generated Answer": "Table Tennis Player",
-            "Score": 8,
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -608,7 +608,7 @@
             "Loss Description": "The person was a U.S. Representative from Ohio, elected as a Republican to the Fifty-third and Fifty-fourth Congresses. They served in the Forty-ninth Regiment, Ohio Volunteer Infantry, and were appointed judge of the court of common pleas by Governor Foster.",
             "True Profession": "Politician",
             "Generated Answer": "U.S. Representative",
-            "Score": 10,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -617,7 +617,7 @@
             "Loss Description": "The person was a costume designer for specific productions: *Firefly*, *Angel*, *Doctor Horrible's Sing-Along Blog*, *Dollhouse*, *Point Pleasant*, and *Torchwood: Miracle Day*. They added a signature mark of pink flamingos to their costumes.",
             "True Profession": "Costume Designer",
             "Generated Answer": "Film Director",
-            "Score": 2,
+            "Score": 1,
             "Justification": "N/A (direct score)"
         },
         {
@@ -625,8 +625,8 @@
             "Anonymized Text": "An individual born in the 19th century was an American writer, teacher, and military officer who achieved a mid-level rank. During a major national conflict, this person was captured and later released before continuing military service. Following this, they held leadership roles at multiple educational institutions in different regions, where they advocated for progressive policies including gender inclusion and pioneered early safety protocols within academic settings.",
             "Loss Description": "The person was a Lieutenant Colonel in the Union Army, was captured in 1864, served as President of Mills College and the University of North Dakota, and institutionalized the first U.S. school fire drills at Adelphi Academy.",
             "True Profession": "Educator",
-            "Generated Answer": "Academic Administrator",
-            "Score": 9,
+            "Generated Answer": "Educator",
+            "Score": 8,
             "Justification": "N/A (direct score)"
         },
         {
@@ -635,7 +635,7 @@
             "Loss Description": "The person was the official photographer for the United States Reclamation Service, documented 25 irrigation projects in 17 Western states, and later photographed the building of Boulder Dam.",
             "True Profession": "Documentary photographer",
             "Generated Answer": "Photographer",
-            "Score": 8,
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -643,8 +643,8 @@
             "Anonymized Text": "A historical figure from a past era was noted for their work in advancing knowledge through systematic inquiry. They maintained a professional association with another individual who achieved prominence in the health sciences. Their partner was active in creative arts, with some of their output being utilized by a well-known artist. Their early experience involved assisting a relative in an instructional environment related to life sciences, where they acquired significant proficiency. They fulfilled a role in healthcare services within an institutional framework, participated in innovative therapeutic practices alongside another specialist, and subsequently founded a private educational venture. They assembled a large reference collection of scientific materials, comprising numerous examples that demonstrated core biological concepts. They were honored by a distinguished academic institution. Their contributions are remembered in scholarly communities through dedicated organizations.",
             "Loss Description": "The person was a Scottish surgeon named John Hunter, a Fellow of the Royal Society, teacher of Edward Jenner, and founder of his own anatomy school. He assembled a collection of nearly 14,000 anatomical specimens, and the Hunterian Society and Hunterian Museum are named for him.",
             "True Profession": "Surgeon",
-            "Generated Answer": "Professor",
-            "Score": 4,
+            "Generated Answer": "Academic",
+            "Score": 5,
             "Justification": "N/A (direct score)"
         },
         {
@@ -653,7 +653,7 @@
             "Loss Description": "The person was a table tennis player, four-time Olympian, and two-time Olympic medalist. They were trained at Beijing's Shichahai Sports School, were ranked 3rd in the world in singles, and won a team silver medal at the 2008 Beijing Olympics and a team bronze at the 2012 London Olympics for Singapore.",
             "True Profession": "Olympic Medalist Table Tennis Player",
             "Generated Answer": "Retired Table Tennis Player",
-            "Score": 7,
+            "Score": 8,
             "Justification": "N/A (direct score)"
         },
         {
@@ -670,8 +670,8 @@
             "Anonymized Text": "An individual with a background in national service was appointed to a senior international role by a head of government during the 2010s. Earlier in their career, they held a high-level position in the armed forces before transitioning to civilian advisory work. In the preceding decade, they were selected by a different national leader for a strategic policy role concerning overseas operations. A media outlet once referred to them with a distinctive label reflecting their coordination duties for these activities. They continued serving in an advisory capacity under a later administration, focusing on related geopolitical matters. After concluding their uniformed service, they remained involved in governmental advisory work. Their spouse also served in a senior administrative position within a domestic security agency during overlapping years.",
             "Loss Description": "The person is the United States Permanent Representative to NATO, appointed by President Obama. They were a U.S. Army lieutenant general and were appointed by President George W. Bush as the \"War Czar\" for Iraq and Afghanistan, a role they continued under President Obama for Afghanistan and Pakistan. Their spouse was Deputy Secretary of Homeland Security.",
             "True Profession": "United States Permanent Representative to NATO",
-            "Generated Answer": "**United States Ambassador to the United Nations**",
-            "Score": 4,
+            "Generated Answer": "**Current Primary Occupation:** Ambassador",
+            "Score": 8,
             "Justification": "N/A (direct score)"
         },
         {
@@ -680,7 +680,7 @@
             "Loss Description": "The person is a Spanish basketball center who participated in the Olympic Games of Athens 2004, Beijing 2008, and Rio 2016 (winning a silver medal), has over 200 caps with Spain, shares a record of 4 FIBA World Championship participations with Amaya Valdemoro and Laia Palau, and played for ŽKK Novi Zagreb and PINKK-Pécsi 424 (winning the Hungarian League).",
             "True Profession": "Basketball Center",
             "Generated Answer": "Professional Basketball Player",
-            "Score": 6,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -716,7 +716,7 @@
             "Loss Description": "The person was a Thoroughbred racehorse trainer named Max Hirsch. He trained for the King Ranch Stable, won the U.S. Triple Crown with Assault, and trained champions Sarazen, Bold Venture, and Middleground. He was inducted into the National Museum of Racing and Hall of Fame.",
             "True Profession": "Thoroughbred racehorse trainer",
             "Generated Answer": "Trainer",
-            "Score": 6,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -725,7 +725,7 @@
             "Loss Description": "The person was a Democratic U.S. Representative from Louisiana's Eighth Congressional District (1985-1987), who defeated Republican Clyde C. Holloway and Democrat Jock Scott.",
             "True Profession": "Former U.S. Representative",
             "Generated Answer": "Former Member of the U.S. House of Representatives",
-            "Score": 10,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -742,7 +742,7 @@
             "Anonymized Text": "An individual is a public figure in their home country, known for their work in the entertainment sector. They collaborate with a group of peers on a popular television program. Originally from a rural area, they now reside in a major city. With a career spanning many years, they have become widely recognized nationally. Their financial success includes diverse business ventures across several industries. They hold significant influence on digital platforms, being among the earliest in their country to achieve a large online following. Additionally, they are involved in religious leadership, overseeing a congregation in an urban center. Their professional engagements have taken them to multiple regions around the world.",
             "Loss Description": "The person is a Tanzanian comedian named Emmanuel \"Masanja Mkandamizaji\" Mgaya, co-host of the comedy TV show *Orijino Komedi* on TBC1 Tanzania. They have worked in comedy since 2005, are one of the top 10 most influential Tanzanians on social media, and were one of the first Tanzanians to get a million followers on Instagram. They are also a pastor who owns a church called \"Mito ya Baraka\".",
             "True Profession": "Entertainment Entrepreneur",
-            "Generated Answer": "**Pastor**",
+            "Generated Answer": "Minister",
             "Score": 4,
             "Justification": "N/A (direct score)"
         },
@@ -751,8 +751,8 @@
             "Anonymized Text": "An individual from a South American country had a career in professional athletics. They began competing in national-level events before transitioning to international competition. This person achieved several victories in domestic multi-stage competitions and also secured wins in international multi-stage events. Their most notable accomplishment was winning a major international multi-stage competition, becoming the first competitor from their continent to do so. They also earned multiple climbing classification awards in premier international competitions and were among the few athletes to achieve this distinction across all three major international events.",
             "Loss Description": "The person won the Vuelta a España in 1987, was the first South American to win a Grand Tour, won stage 17 to Alpe d'Huez in the 1984 Tour de France, and was the first amateur cyclist to win a stage in the Tour de France.",
             "True Profession": "Road racing cyclist",
-            "Generated Answer": "Professional Cyclist",
-            "Score": 9,
+            "Generated Answer": "Professional Road Cyclist",
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -761,7 +761,7 @@
             "Loss Description": "The person is Ralph Garman, host of *The Joe Schmo Show*, a voice actor on *Family Guy*, the entertainment reporter for the *Kevin and Bean* show on KROQ-FM, and hosts the *Hollywood Babble-On* podcast with Kevin Smith.",
             "True Profession": "Radio Personality",
             "Generated Answer": "Radio Host",
-            "Score": 9,
+            "Score": 8,
             "Justification": "N/A (direct score)"
         },
         {
@@ -769,8 +769,8 @@
             "Anonymized Text": "An individual (1933-2014) was among the early students of a prominent instructor in a specialized physical discipline. After relocating to a major city, they began informal training in this practice during their youth while working in a service industry role where classes were held. Due to health considerations, they developed a conceptual approach to the practice. They later instructed selected international practitioners, using non-verbal communication methods when working with those who spoke different languages. Despite considering themselves retired, they continued teaching to preserve their unique interpretation of core principles. They created educational materials including publications and training recordings. They became recognized for their particular emphasis on fundamental movements within the discipline's training system, advocating greater focus on these basics than on more advanced techniques.",
             "Loss Description": "The person was the third student of Yip Man in Wing Chun, known as the 'King of Siu Nim Tao', and authored the book \"詠春寶鑑\".",
             "True Profession": "Wing Chun Master",
-            "Generated Answer": "Author",
-            "Score": 4,
+            "Generated Answer": "Teacher",
+            "Score": 8,
             "Justification": "N/A (direct score)"
         },
         {
@@ -779,7 +779,7 @@
             "Loss Description": "The person is a comedian, podcast personality, and writer. Specific lost details include: the podcasts Sklarbro Country, The Bear Down Podcast, The Todd Glass Show, and hosting Hindsight on the Steve Dahl Network; performing characters of Mark Wahlberg and Steven Seagal; and performing at South by Southwest, Riot: LA Comedy Fest, Meltdown Comics, Set List Live, and the Just For Laughs Festival in Montreal.",
             "True Profession": "Podcast personality",
             "Generated Answer": "Comedian",
-            "Score": 7,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -788,7 +788,7 @@
             "Loss Description": "The person is an independent filmmaker and photographer known for work with refugees; their exhibition \"The Afghans: Pictures of Resilience 2001 - 2011\" was shown at Gallery 169, Sharq Gallery, and the Council on Foreign Relations; they starred in Siddiq Barmak's film *Opium War*, Afghanistan's official submission to the 2009 Academy Awards, which won the Golden Marc’Aurelio Critics’ Award at the Rome Film Festival; their current project *Scarlet Poppy* has been featured at the Busan International Film Festival, International Film Festival of India, the Independent Filmmaker Project \"No Borders\", and the Dubai International Film Festival.",
             "True Profession": "Filmmaker",
             "Generated Answer": "Film Director",
-            "Score": 9,
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -796,8 +796,8 @@
             "Anonymized Text": "A Canadian athlete born in the late 1980s has pursued a professional career in a team sport. Beginning their amateur participation in the mid-2000s with a local organization, they later contributed to establishing a community-level team in their hometown. Following that team's dissolution around 2013, they joined another community team where they achieved success in a national championship. Their professional journey included playing for multiple organizations across different leagues, experiencing both practice squad roles and competitive play. After several transitions between teams, they eventually secured a position with a professional organization where they made their competitive debut.",
             "Loss Description": "The person is a professional lacrosse player for the Vancouver Stealth (NLL) and Six Nations Chiefs (MSL); won a Presidents Cup with the St. Catharines Saints and back-to-back Mann Cups (2013, 2014) with the Six Nations Chiefs; and played for the Brampton Excelsiors, Durham TurfDogs, and Barrie Blizzard.",
             "True Profession": "Professional Lacrosse Player",
-            "Generated Answer": "Professional Lacrosse Player",
-            "Score": 10,
+            "Generated Answer": "Professional Hockey Player",
+            "Score": 2,
             "Justification": "N/A (direct score)"
         },
         {
@@ -806,7 +806,7 @@
             "Loss Description": "The person is a Thoroughbred horse racing trainer who conditioned the 2009 Kentucky Derby winner, Mine That Bird. The horse, under jockeys Calvin Borel and Mike Smith, also placed second in the Preakness Stakes and third in the Belmont Stakes, completing the U.S. Triple Crown series. The trainer is based at Sunland Park Racetrack.",
             "True Profession": "Thoroughbred horse racing trainer",
             "Generated Answer": "Thoroughbred Trainer",
-            "Score": 10,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -824,7 +824,7 @@
             "Loss Description": "The person was a Canadian culinary author, speaker, commentator, journalist, and broadcaster known as \"Madame Benoît.\" She studied at the Sorbonne and Cordon Bleu, started the \"Fumet de la Vieille France\" cooking school in Montreal, opened \"The Salad Bar\" vegetarian restaurant in 1935, wrote the Encyclopedia of Canadian Cuisine, appeared on CBC's Take 30, and was an Officer of the Order of Canada.",
             "True Profession": "Culinary author",
             "Generated Answer": "Author",
-            "Score": 6,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -833,7 +833,7 @@
             "Loss Description": "The person was a tennis player named Alan Abraham \"Abe\" Segal; his doubles partner was Gordon Forbes; competitors Alex Metreveli and István Gulyás refused to play him at Wimbledon in 1964; he won the 1951 Irish Open singles title; and he played for the South African Davis Cup team in 19 ties between 1955-1965.",
             "True Profession": "Professional Tennis Player",
             "Generated Answer": "Author",
-            "Score": 3,
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -842,7 +842,7 @@
             "Loss Description": "The person was an aeronautical and systems engineer named Clarence Leonard \"Kelly\" Johnson. He was the first team leader of the Lockheed Skunk Works and designed the Lockheed U-2, SR-71 Blackbird, and AQM-60 Kingfisher. He contributed to the first U.S. operational jet fighter and aircraft that first exceeded 400 mph, Mach 2, and Mach 3. His work was recognized with the Collier Trophy and a high ranking by Aviation Week & Space Technology.",
             "True Profession": "Aircraft Design Engineer",
             "Generated Answer": "Aerospace Engineer",
-            "Score": 8,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -850,7 +850,7 @@
             "Anonymized Text": "An individual from a particular region, active during a certain period, became the initial representative of a foreign culinary tradition on a televised cooking competition. They were noted for their unique approach and given a descriptive title reflecting their creative process. Their involvement consisted of a small number of matches with an outstanding record and no unresolved outcomes. They concluded their regular participation after a brief period, citing program-related challenges, but later returned intermittently in various roles, including as a temporary replacement and assessor. Following this, they founded multiple food service businesses and moved to a different geographic area.",
             "Loss Description": "The person was the first French chef on Iron Chef, nicknamed \"The Artist,\" had a 7-1 record in eight battles, and opened a restaurant chain called \"Queen Alice.\"",
             "True Profession": "Iron Chef French",
-            "Generated Answer": "Chef",
+            "Generated Answer": "Restaurant Owner",
             "Score": 7,
             "Justification": "N/A (direct score)"
         },
@@ -860,7 +860,7 @@
             "Loss Description": "The person is Chef Masaharu Morimoto, best known as an Iron Chef on the shows \"Iron Chef\" and \"Iron Chef America.\" They trained in sushi and Kaiseki, opened their own restaurant in Hiroshima, worked at the Sony Club and Nobu in New York, and founded the Morimoto restaurant chain, including locations in Philadelphia, New York, Tokyo (Morimoto XEX, which received a Michelin star), Napa, Waikiki, and Morimoto Asia at Disney Springs. They also collaborated on a line of beers with Rogue Ales.",
             "True Profession": "Iron Chef",
             "Generated Answer": "Restaurant Entrepreneur",
-            "Score": 7,
+            "Score": 8,
             "Justification": "N/A (direct score)"
         },
         {
@@ -878,7 +878,7 @@
             "Loss Description": "The person was a Formula One driver who participated in 10 Grands Prix, debuted in 1970, and drove for teams including Lotus, March, and Marlboro BRM. Specific racing achievements lost include victories at the 6 Hours of Jarama (with Jochen Rindt), the 24 Hours of Spa, and the Spanish GT-Sport Championship. The cars driven (e.g., Lotus 49, Porsche 907) and specific events like the Monte Carlo Rally are also lost.",
             "True Profession": "Racing Driver",
             "Generated Answer": "Businessman",
-            "Score": 3,
+            "Score": 4,
             "Justification": "N/A (direct score)"
         },
         {
@@ -895,8 +895,8 @@
             "Anonymized Text": "An individual born in the 1930s held a senior diplomatic role in a foreign country during the mid-2000s. They have held executive positions in global financial institutions and served in high-level government roles related to international economic policy during the late 20th century. Their career included leadership positions in investment banking and advisory roles to foreign financial authorities. They previously participated in a prestigious government fellowship program and worked as an assistant to a cabinet official. In the 2010s, legal authorities from another nation sought their testimony in a financial case.",
             "Loss Description": "The person was United States Ambassador to India (2004-2009), Vice-Chairman International of Credit Suisse, and held senior roles at Credit Suisse First Boston and White, Weld & Co., including as an advisor to the Saudi Arabian Monetary Agency. They served as Assistant Secretary and Under Secretary for International Affairs at the Treasury Department.",
             "True Profession": "Investment Banker",
-            "Generated Answer": "**Consultant**",
-            "Score": 4,
+            "Generated Answer": "Consultant",
+            "Score": 3,
             "Justification": "N/A (direct score)"
         },
         {
@@ -905,7 +905,7 @@
             "Loss Description": "The person is Sergey Karjakin, a chess grandmaster who was the Challenger to Magnus Carlsen in the World Chess Championship 2016, won the 2012 World Rapid Chess Championship, the 2015 Chess World Cup, the Norway Chess Tournament (2013, 2014), and the Corus Chess Tournament in 2009.",
             "True Profession": "Chess Grandmaster",
             "Generated Answer": "Chess Player",
-            "Score": 8,
+            "Score": 6,
             "Justification": "N/A (direct score)"
         },
         {
@@ -922,8 +922,8 @@
             "Anonymized Text": "An individual from a specific region, born during a certain period, engaged in a lengthy professional career within a competitive domain. They participated in numerous organized contests over an extended timeframe, achieving recognition for their sustained involvement and securing high placements in various seasonal rankings. This person attained a limited number of contest victories, with two of these achievements occurring with considerable time between them. They also took part in a separate professional circuit within the same general field, achieving multiple successes and a high placement during one competitive cycle.",
             "Loss Description": "The person was a Formula One driver, achieved 257 Grand Prix starts, was runner-up in 1992, won six races including the 1983 South African and 1990 San Marino Grands Prix, and was a runner-up in the World Sportscar Championship for Lancia in 1982.",
             "True Profession": "Formula One Driver",
-            "Generated Answer": "Formula One Driver",
-            "Score": 10,
+            "Generated Answer": "Retired Professional Tennis Player",
+            "Score": 1,
             "Justification": "N/A (direct score)"
         },
         {
@@ -932,7 +932,7 @@
             "Loss Description": "The person was a National Geographic photographer for 30 years, was twice named its \"Magazine Photographer of the Year\", was \"White House Photographer of the Year\" in 1989, and had a photograph selected for NASA's Voyager Spacecraft. Their book, \"The American Southwest,\" was published by National Geographic.",
             "True Profession": "Photojournalist",
             "Generated Answer": "Photographer",
-            "Score": 6,
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -959,7 +959,7 @@
             "Loss Description": "The person was a nature photographer known for work in the Lake Superior area. They co-founded the Blacklock Nature Sanctuary, which includes a photo darkroom. The fellowship is for Minnesota artists and is funded by the Jerome Hill Foundation.",
             "True Profession": "Nature photographer",
             "Generated Answer": "Artist",
-            "Score": 6,
+            "Score": 5,
             "Justification": "N/A (direct score)"
         },
         {
@@ -968,7 +968,7 @@
             "Loss Description": "The person is an actor-clown, co-founded the clown theatre Litsedei with Slava Polunin, performed at the Leningrad State Variety Theatre, worked with the Big Apple Circus's Clown Care Unit in New York, performed in \"Slava's Snowshow\" at The Old Vic, founded Soccorso Clown, and created the Olshansky \"Art De La Joie\" Compagnie Théâtrale in Paris.",
             "True Profession": "Clown and Theatre Artist",
             "Generated Answer": "Theater Director",
-            "Score": 4,
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -977,7 +977,7 @@
             "Loss Description": "The person was a comedian, actor, author, and radio/podcast host, specifically on The Howard Stern Show and Mad TV. They starred in the film Dirty Work, created Artie Lange's Beer League, and wrote the books Too Fat to Fish and Crash and Burn. Their comedy albums and The Artie Quitter Podcast were also lost.",
             "True Profession": "Comedian and radio personality",
             "Generated Answer": "Comedian",
-            "Score": 8,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -995,7 +995,7 @@
             "Loss Description": "The person was U.S. Ambassador to Bahrain, a deputy assistant secretary of state under Ronald Reagan, Consul General in Jerusalem, Director-General of the Multinational Force and Observers, and president/CEO of the Cleveland Council on World Affairs.",
             "True Profession": "U.S. Diplomat",
             "Generated Answer": "President",
-            "Score": 3,
+            "Score": 4,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1004,7 +1004,7 @@
             "Loss Description": "The person co-founded S.A.F.T.A., debuted at UFC 5 defeating Andy Anderson, was fined for eye gouging, challenged Royce Gracie, lost to Vitor Belfort at SuperBrawl 2, and has cornered fighters for Team Quest and Gladiator Challenge.",
             "True Profession": "Mixed Martial Artist",
             "Generated Answer": "MMA Coach",
-            "Score": 7,
+            "Score": 8,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1013,7 +1013,7 @@
             "Loss Description": "The person hosted/wrote for \"The Movie Loft,\" \"Premium TV,\" \"New York Now,\" and \"BrainFuel TV\"; hosted \"LateNet with Ray Ellin\" and \"Gong Show Live\"; produced/directed \"The Latin Legends Of Comedy\"; and co-starred in \"Killing Cinderella\" with Jessica Capshaw.",
             "True Profession": "Talk show host",
             "Generated Answer": "Comedian",
-            "Score": 7,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1021,8 +1021,8 @@
             "Anonymized Text": "An individual born in the 1970s is known for a career in combat sports. They are recognized as a prominent figure in a specific martial art, having competed against other notable practitioners in the field. Their professional record includes a high number of victories. They have won multiple major titles in their discipline during a period considered its peak. Known for their physical resilience and a powerful striking technique, they began training in early childhood and started competing shortly after. They achieved entry into a premier competition venue as a young teenager and later defeated a well-known international opponent. A series of matches against another competitor became famous, with one particular bout noted for its intensity. In the late 2000s, they transitioned to another martial art, achieving success in global competitions, including winning a world championship twice and placing highly in another major event. They are currently involved in instruction at an organization in a coastal city.",
             "Loss Description": "The person is Sakmongkol Sithchuchok, a Thai super middleweight Muay Thai-kickboxer. He defeated Ramon Dekkers, Danny Bill, Perry Ubeda, John Wayne Parr, and Jongsanan Fairtex. He is a 5-time WMC World Champion and 3-time Lumpinee Stadium Champion. His famous \"Elbow Fight\" was against Jongsanan Fairtex. Since 2008, he has competed in karate as Kalek Mongkhon, winning the WKO World Championships in 2009 and 2010. He currently teaches at the World Kumite Organization (WKO) in Pattaya.",
             "True Profession": "Muay Thai World Champion",
-            "Generated Answer": "Martial Arts Instructor",
-            "Score": 7,
+            "Generated Answer": "**Martial Arts Instructor**",
+            "Score": 8,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1040,7 +1040,7 @@
             "Loss Description": "The person was a photographer, studied at the State School of Graphic Arts and the Academy of Visual Arts under Professor Rudolf Skopec, and was a member of a dissident intellectual group including Jiří Kolář, Jan Hanč, Kamil Lhoták, Jan Rychlík, Zdeněk Urbánek, and Josef Schwarz.",
             "True Profession": "Fine Art Photographer",
             "Generated Answer": "Photographer",
-            "Score": 6,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1049,7 +1049,7 @@
             "Loss Description": "The person is a comedian who directed shows for Eddie Izzard; was host/co-creator of The RDA on BBC Choice; was a finalist to replace Angus Deayton on *Have I Got News For You*; took solo shows to the Edinburgh Festival in 2007, 2008, 2009; their show *Cheap Shots at the Defenceless* was nominated at the Leicester Comedy Festival; directed for comedians including Josh Widdicombe, Dara Ó Briain, and Michael McIntyre; directed Reginald D Hunter's *Live: In the Midst of Crackers*; worked on *Freewheeling with Ross Noble* for Dave TV; and directed *Dylan",
             "True Profession": "Comedy Director",
             "Generated Answer": "Comedian",
-            "Score": 7,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1058,7 +1058,7 @@
             "Loss Description": "The person was a Spanish track cyclist specializing in the madison and points race, a four-time world champion in the points race, a three-time world champion in the Madison, a double Olympic champion (2000 Sydney, 2008 Beijing), and won a silver medal in the madison at the 2008 Olympics, becoming the Spaniard with the most Olympic medals.",
             "True Profession": "Track cyclist",
             "Generated Answer": "Retired Professional Cyclist",
-            "Score": 8,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1067,7 +1067,7 @@
             "Loss Description": "The person was a Hall of Fame Thoroughbred horse racing trainer named Winbert F. \"Bert\" Mulholland. Specific achievements lost include winning the 1962 Belmont Stakes, holding the record for most wins (five) in the Travers Stakes, and training champion horses such as Platter, Stefanita, Battlefield, Evening Out, and Jaipur.",
             "True Profession": "Hall of Fame Thoroughbred Horse Racing Trainer",
             "Generated Answer": "Thoroughbred Trainer",
-            "Score": 9,
+            "Score": 10,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1085,7 +1085,7 @@
             "Loss Description": "The person was a stand-up comedian and actor known for roles in Mork & Mindy and films like Good Morning, Vietnam and Good Will Hunting, winning an Academy Award, two Emmys, six Golden Globes, and five Grammys.",
             "True Profession": "Actor and Comedian",
             "Generated Answer": "Comedian",
-            "Score": 8,
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1094,7 +1094,7 @@
             "Loss Description": "The person was a tennis player for East Germany, won 47 GDR titles, was ranked ATP 482, and was cited by Martina Navratilova as having top-ten potential.",
             "True Profession": "Former Tennis Player",
             "Generated Answer": "Retired Professional Tennis Player",
-            "Score": 9,
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1102,8 +1102,8 @@
             "Anonymized Text": "An individual born in the late 19th century and deceased in the mid-20th century, who was the child of a parent with the same surname, received specialized training in a traditional craft. Early in the 20th century, they assumed a leadership position in a family-owned manufacturing enterprise. This workshop produced a variety of handcrafted goods known for consistent quality and grew to employ hundreds of workers within a decade. Numerous skilled artisans contributed to the operation, though their specific roles are not detailed. The workshop maintained a reference collection of exemplary historical items from renowned creators, which were carefully studied to guide their own production processes. Operations were temporarily interrupted by a major armed conflict but resumed afterward, continuing for some time before the enterprise ultimately ceased operations.",
             "Loss Description": "The person was a luthier and bow maker for the Laberte-Humbert Frères company, which employed over 300 people and used instruments by Stradivari, Guarneri, and Vuillaume as models.",
             "True Profession": "Luthier and Bow Maker",
-            "Generated Answer": "Master Craftsman",
-            "Score": 6,
+            "Generated Answer": "Businessman",
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1111,8 +1111,8 @@
             "Anonymized Text": "A European athlete born in the late 1980s in a German town pursued a career in professional sports. They started with their local team before relocating to a larger city where they trained with youth programs of two different clubs. After returning to their hometown around 2008, they gained significant experience by participating in numerous matches over two seasons in a national league. Later, they joined a reserve team of a major sports organization but faced setbacks due to physical conditions, delaying their competitive debut for several months. Following limited substitute appearances during a season where their team dropped to a lower competitive level, they transitioned to another reserve team before moving to an international sports organization after a brief period.",
             "Loss Description": "The person is a footballer who played for SSV Reutlingen, VfB Stuttgart, SV Kickers, Bayern Munich II, Eintracht Frankfurt II, and Maccabi Netanya in the Regionalliga Süd and 3. Fußball-Liga.",
             "True Profession": "Professional Footballer",
-            "Generated Answer": "Footballer",
-            "Score": 10,
+            "Generated Answer": "Professional Footballer",
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1121,7 +1121,7 @@
             "Loss Description": "The person was footballer Svein Erling \"Matta\" Mathisen who played for IK Start, won the Norwegian league title in 1978 and 1980, and held club records for 327 top-tier matches and 106 goals.",
             "True Profession": "Footballer",
             "Generated Answer": "Footballer",
-            "Score": 10,
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1130,7 +1130,7 @@
             "Loss Description": "The person was a delegate for South Carolina to the Continental Congress (1786-1788) and a United States Representative (1789-1793). His descendants included a son who served in the U.S. Senate and a nephew who was Confederate General Benjamin Huger.",
             "True Profession": "Continental Congress Delegate",
             "Generated Answer": "U.S. Representative",
-            "Score": 7,
+            "Score": 8,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1139,7 +1139,7 @@
             "Loss Description": "The person is named Vjekoslav Kramer, a master chef from Travnik. He won the show \"Searching for Croatian Naked Chef,\" works for Televizija OBN, and hosts the show \"Pots and Pans (Lonci i Poklopci).\"",
             "True Profession": "Master Chef",
             "Generated Answer": "TV Host",
-            "Score": 7,
+            "Score": 8,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1157,7 +1157,7 @@
             "Loss Description": "The person was Sir Charles Edward Inglis, a civil engineer. He invented the Inglis Bridge, worked with Giffard Le Quesne Martel on temporary bridges for tanks, was president of the Institution of Civil Engineers, and investigated the loss of the airship R101.",
             "True Profession": "Civil engineer",
             "Generated Answer": "Professor",
-            "Score": 7,
+            "Score": 8,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1165,8 +1165,8 @@
             "Anonymized Text": "An individual born in the 1930s pursued a professional athletic career after military service. Initially not participating in their eventual sport during secondary education, they later received collegiate athletic recruitment following a growth spurt and amateur competition. During their college years, they achieved notable statistical performances in their sport, including an exceptional single-game accomplishment that ranks among the highest recorded in collegiate athletics. They subsequently competed professionally for multiple seasons with several teams, maintaining moderate career statistics. A persistent injury led to their athletic retirement, after which they transitioned to educational work and later developed specialized training equipment for developing athletes. They maintain residence in a Pacific Northwest community and have three adult children from a previous marriage.",
             "Loss Description": "The person played basketball at Seattle University, had 40 rebounds in a game against the University of Montana (4th-highest in NCAA history), was drafted by the St. Louis Hawks, and played in the NBA for teams including the Detroit Pistons, Cincinnati Royals, Seattle SuperSonics, Los Angeles Lakers, and Baltimore Bullets.",
             "True Profession": "Professional Basketball Player",
-            "Generated Answer": "Academy Coach",
-            "Score": 2,
+            "Generated Answer": "Businessman",
+            "Score": 4,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1175,7 +1175,7 @@
             "Loss Description": "The person was an NFL punter for the Detroit Lions and an MLB pitcher for the St. Louis Cardinals and Detroit Tigers. They were a scout for the Tampa Bay Devil Rays, Florida/Miami Marlins, and Atlanta Braves, and worked as a player agent.",
             "True Profession": "Baseball Pitcher",
             "Generated Answer": "Scout",
-            "Score": 7,
+            "Score": 8,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1184,7 +1184,7 @@
             "Loss Description": "The person was a Dutch chess grandmaster named Hein Donner who won the Dutch Championship in 1954, 1957, and 1958, was awarded the GM title by FIDE in 1959, played in 11 Chess Olympiads for the Netherlands, and wrote for NRC Handelsblad and Schaaknieuws.",
             "True Profession": "Chess Grandmaster",
             "Generated Answer": "Author",
-            "Score": 7,
+            "Score": 8,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1193,7 +1193,7 @@
             "Loss Description": "The person was an architect named George H. Shanley from Great Falls, Montana, who specialized in designing newspaper publishing plants. Specific works lost include the Bismarck Tribune Building, Graves Hotel, Tenth Street Bridge, and the Teton County Courthouse, among other NRHP-listed buildings.",
             "True Profession": "Architect",
             "Generated Answer": "Architect",
-            "Score": 10,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1202,7 +1202,7 @@
             "Loss Description": "The person is a photographer. Specific lost details: the exhibition catalog \"Spiral Journey\" at the Museum of Contemporary Photography (1990), a Guggenheim Fellowship (1979), NEA grants (1976, 1988), representation at the Rencontres d'Arles festival (1971), and being a professor at the San Francisco Art Institute.",
             "True Profession": "Fine art photographer",
             "Generated Answer": "Professor",
-            "Score": 7,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1211,7 +1211,7 @@
             "Loss Description": "The person is an Irish comedian, writer, actor, and filmmaker known for the sitcom 'Black Books', the films 'Shaun of the Dead' and 'Calvary', and for being ranked in Channel 4's '100 Greatest Stand-Ups'.",
             "True Profession": "Comedian and actor",
             "Generated Answer": "Comedian",
-            "Score": 8,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1229,7 +1229,7 @@
             "Loss Description": "The person was a Russian diplomat and entomologist; he was the Russian consul general in New York City during the American Civil War; he worked on Diptera, specifically the Tipulidae (crane flies); he published the \"Catalogue of the described Diptera of North America\" with Hermann Loew; he coined the term chaetotaxy; and the snake subspecies *Thamnophis sauritus sackenii* was named for him.",
             "True Profession": "Dipterist",
             "Generated Answer": "Entomologist",
-            "Score": 8,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1238,7 +1238,7 @@
             "Loss Description": "The person was a neoclassical architect; designed the Gillionville Plantation; worked for the firm Hentz, Reid, and Adler; designed warships for the U.S. Navy; renovated the U.S. Department of State's Diplomatic Reception Rooms and the White House; and a room was named the \"Edward Vason Jones Memorial Hall.\"",
             "True Profession": "Neoclassical Architect",
             "Generated Answer": "Architect",
-            "Score": 6,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1256,7 +1256,7 @@
             "Loss Description": "The person is Fred Gil, a Portuguese tennis player who reached the 2010 Estoril Open final, achieved a world ranking of 62, reached the third round of the 2012 Australian Open, the quarterfinals of the 2011 Monte-Carlo Masters, and was the first Portuguese to earn one million dollars in prize money.",
             "True Profession": "Professional Tennis Player",
             "Generated Answer": "Professional Tennis Player",
-            "Score": 10,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1264,8 +1264,8 @@
             "Anonymized Text": "An individual born in the 1980s in a southern European region is a professional athlete in a competitive sport. They have not achieved first place in any major events but once held a temporary leadership position in a classification during a prominent multi-stage competition that started in their home area. On one occasion, this person was among several athletes investigated by a sports governing body for unusual medical readings. Their team temporarily suspended them, citing a medical condition that caused low blood levels from a prior health issue. In another season, a notable performance in an early segment of a major event earned them a special distinction for one day before another competitor claimed it.",
             "Loss Description": "The person is Jesús Rosendo Prado, a professional road bicycle racer for team Andalucía. He was the first leader of the King of the Mountains classification in the 2008 Vuelta a España and was investigated for irregular blood values. In the 2011 Vuelta, he wore the white combined jersey.",
             "True Profession": "Professional road bicycle racer",
-            "Generated Answer": "Professional Road Cyclist",
-            "Score": 10,
+            "Generated Answer": "Professional Cyclist",
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1274,7 +1274,7 @@
             "Loss Description": "The person was a Republican U.S. Representative and California State Senator from Orange County, a member and leader of the John Birch Society, the 1972 American Independent Party presidential candidate, and authored the introduction to the book \"None Dare Call it Conspiracy\".",
             "True Profession": "Politician",
             "Generated Answer": "Politician",
-            "Score": 10,
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1282,8 +1282,8 @@
             "Anonymized Text": "An individual born in March 1981 in Western Australia is an amateur athlete who competed in a sport. They participated on a national team for over a decade and represented their country in an international sporting event, reaching the semifinals. That same year, they achieved second place in both national and international competitions held in an Australian city. Throughout their career, they trained with a coach at a local club. They qualified for the international event through a global sporting body based on their performance in a world championship event. Despite a top-ten ranking and preliminary seeding, they were eliminated during the semifinal round.",
             "Loss Description": "The person competed in BMX cycling at the 2008 Summer Olympics, finished second at the Australian national championships and Supercross World Cup in Adelaide, and was ranked no. 9 in the UCI rankings.",
             "True Profession": "BMX cyclist",
-            "Generated Answer": "Amateur Athlete",
-            "Score": 6,
+            "Generated Answer": "Amateur Cyclist",
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1292,7 +1292,7 @@
             "Loss Description": "The person played basketball for Ludington High School and the University of Michigan Wolverines, was drafted by the Syracuse Nationals, played for Milan Simmenthal in Italy, and later worked for Ford Motor Company, Paine Webber, Goldman Sachs, and General Electric.",
             "True Profession": "Former Basketball Player",
             "Generated Answer": "Retired Executive",
-            "Score": 3,
+            "Score": 4,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1310,7 +1310,7 @@
             "Loss Description": "The person was a road cyclist who won a silver medal in the time trial at the 1994 UCI Road World Championships, won the Canadian National Time Trial Championships twice, and won a gold medal in the time trial at the 2007 Pan American Games. Post-retirement, they worked as a content manager for Trek Factory Racing and as an online digital editor for the RusVelo team, and is a cycling coach.",
             "True Profession": "Road cyclist",
             "Generated Answer": "Sports Coach",
-            "Score": 3,
+            "Score": 6,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1319,7 +1319,7 @@
             "Loss Description": "The person is a table tennis player who represented Poland, competed for Siarka Tarnobrzeg, participated in the TOP-12 tournament, and won it in Düsseldorf in 2009.",
             "True Profession": "Olympic Table Tennis Player",
             "Generated Answer": "Table Tennis Player",
-            "Score": 9,
+            "Score": 10,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1327,8 +1327,8 @@
             "Anonymized Text": "An individual born in the 1980s had a brief professional athletic career in a major North American team sport. After completing their education at a university, they entered the professional system through an initial agreement with a major organization. Their career involved progressing through multiple developmental levels within that organization's system over several years, achieving varying degrees of performance success at different stages. They eventually reached the highest competitive level for a short period, participating in limited official competitions before returning to developmental levels. Their professional journey concluded after additional seasons in secondary competitive environments, including international experience during one offseason.",
             "Loss Description": "The person was a starting pitcher in Major League Baseball for the Colorado Rockies in the 2011 season, played for minor league teams including the Grand Junction Rockies, Asheville Tourists, Modesto Nuts, Tulsa Drillers, and Colorado Springs Sky Sox, and later played for the Lancaster Barnstormers and Tiburones de La Guaira.",
             "True Profession": "Pitcher",
-            "Generated Answer": "Professional Baseball Player",
-            "Score": 6,
+            "Generated Answer": "Baseball Player",
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1345,7 +1345,7 @@
             "Anonymized Text": "An individual born in the mid-20th century in the southern United States pursued a career in professional athletics, initially competing at the highest level of a team sport before transitioning into coaching roles. After completing higher education with a business degree, this person briefly participated in premier competitions during the 1970s, primarily in a substitute capacity, achieving several victories and limited defeats across fewer than one hundred appearances. Their athletic career continued at secondary competitive tiers before moving into instructional positions within multiple professional organizations. The person later returned to elite-level coaching for several years in the late 1990s and early 2000s. They currently live with their spouse in a residential community.",
             "Loss Description": "The person was a pitcher in Major League Baseball for the San Diego Padres and Houston Astros, a coach for the Texas Rangers, and a manager in the Toronto Blue Jays' minor league system.",
             "True Profession": "Baseball Pitcher",
-            "Generated Answer": "Retired Professional Baseball Coach",
+            "Generated Answer": "Baseball Coach",
             "Score": 7,
             "Justification": "N/A (direct score)"
         },
@@ -1355,7 +1355,7 @@
             "Loss Description": "The person was a portrait painter who executed over 125 portraits from life, including specific subjects Thomas Mann, Edgar Lee Masters, and Oveta Culp Hobby in her WAAC uniform; one portrait is in the National Portrait Gallery. She had twenty-seven one-man shows and illustrated \"Azalea Commemorating Its Twentieth Annual Azalea Trail Houston.\" Her papers are at the Woodson Research Center, Fondren Library, Rice University.",
             "True Profession": "Portrait painter",
             "Generated Answer": "Painter",
-            "Score": 6,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1363,8 +1363,8 @@
             "Anonymized Text": "An individual achieved distinction in a competitive domain. They maintained a leading position for an extended duration before being overtaken by a rival, with whom they had several high-profile encounters. After a significant organizational shift within their field, they reacquired a formal leadership role, which they later chose to abandon due to disagreements with institutional policies. Their sustained excellence over many years has earned them a reputation as a notable figure in their area, supported by numerous competitive achievements, high performance metrics, and extended periods of prominence among top practitioners.",
             "Loss Description": "The person is the chess grandmaster and former World Champion Anatoly Karpov, who was the official world champion from 1975 to 1985, was defeated by and played multiple title matches against Garry Kasparov, became FIDE World Champion again in 1993, and held that title until 1999.",
             "True Profession": "Chess Grandmaster",
-            "Generated Answer": "Retired Tennis Player",
-            "Score": 1,
+            "Generated Answer": "Chess Player",
+            "Score": 6,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1409,7 +1409,7 @@
             "Loss Description": "The person was the first Dutch professional baseball player, played for the New York Mutuals, Cleveland Forest Citys, and Elizabeth Resolutes, and was primarily a pitcher.",
             "True Profession": "Professional Baseball Pitcher",
             "Generated Answer": "Baseball Player",
-            "Score": 6,
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1417,7 +1417,7 @@
             "Anonymized Text": "An individual with a military background was involved in early government space initiatives, holding command positions on several orbital flights that included pioneering journeys and a collaborative international effort. This person was one of the first high-ranking officers to participate in space travel, accumulating extensive flight time and experience operating diverse aircraft and specialized vehicles.",
             "Loss Description": "The person was Commander of Apollo 10 and the Apollo-Soyuz Test Project, flew aboard two Gemini missions, and was a USAF Lieutenant General.",
             "True Profession": "Astronaut and Test Pilot",
-            "Generated Answer": "Retired United States Air Force Officer",
+            "Generated Answer": "Retired US Air Force Officer",
             "Score": 7,
             "Justification": "N/A (direct score)"
         },
@@ -1427,7 +1427,7 @@
             "Loss Description": "The person studied at the Royal Academy of Fine Arts, created advertising art featuring gigantic faces and foaming beers, and focuses on the contemporary American urban scene.",
             "True Profession": "Fine Artist",
             "Generated Answer": "Artist",
-            "Score": 9,
+            "Score": 6,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1436,7 +1436,7 @@
             "Loss Description": "The person is Ľubomír Ftáčnik, a Slovak chess player, former European Junior Champion (1976/77), and International Grandmaster (1980). He won national championships in Czechoslovakia (1981, 1982, 1983, 1985), won tournaments in Esbjerg, Trnava, Vienna, and others, and contributed to Czechoslovakia's silver medal at the 1982 Chess Olympiad. He co-authored the book \"Winning The Won Game\" and plays league chess in the German Bundesliga.",
             "True Profession": "Chess Grandmaster",
             "Generated Answer": "Chess Player",
-            "Score": 8,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1445,7 +1445,7 @@
             "Loss Description": "The person is Jean-Paul Viguier, an architect who co-founded teaching unit n°5, won the Opera Bastille and head Defense competitions, co-designed the Parc André-Citroën and the French Pavilion for Seville Expo '92, and designed headquarters for the Caisse des Depots, France Télévisions, Alstom, AstraZeneca, and Bristol-Myers Squibb.",
             "True Profession": "Architect and Urban Planner",
             "Generated Answer": "Architect",
-            "Score": 8,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1454,7 +1454,7 @@
             "Loss Description": "The person drove for the Marussia F1 Team, scored its first points at the Monaco Grand Prix, and was the first Formula One driver killed in a race event since Ayrton Senna in 1994.",
             "True Profession": "Formula One driver",
             "Generated Answer": "Formula One Driver",
-            "Score": 10,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1463,7 +1463,7 @@
             "Loss Description": "The person was a professional baseball pitcher named James D. McElroy who played for the Philadelphia Quakers and Wilmington Quicksteps in 1884, was released by manager Harry Wright, and was known for his hard but wild pitching.",
             "True Profession": "Pitcher",
             "Generated Answer": "Baseball Player",
-            "Score": 6,
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1471,8 +1471,8 @@
             "Anonymized Text": "An individual from the early 19th century gained recognition for their contributions to a creative field. They acquired skills through informal training and pursued opportunities in various locations, serving distinguished clients during their career. Their work involved partnerships that facilitated the production of written works, which later gained prominence. They maintained a family life with multiple descendants, some of whom entered communication-related professions. They experienced a lengthy lifespan, predeceasing their partner by a considerable period.",
             "Loss Description": "The person was a French chef, author of classic recipe books, and creator of Veal Orloff. They worked for Prince Alexey Orlov and Prince Regent William of Prussia, and co-headed a kitchen with Émile Bernard.",
             "True Profession": "Cookbook author",
-            "Generated Answer": "Painter",
-            "Score": 1,
+            "Generated Answer": "Printer",
+            "Score": 2,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1508,7 +1508,7 @@
             "Loss Description": "The person was a tennis player who competed in Grand Slam tournaments, reached the third round of the US Open singles in 1982, won the Karen Krantzcke Sportsmanship Award, and served on the WITA board.",
             "True Profession": "Professional tennis player and coach",
             "Generated Answer": "**Tennis Coach**",
-            "Score": 7,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1517,7 +1517,7 @@
             "Loss Description": "The person was a motor racing driver who participated in 23 World Championship Grands Prix, scored nine points, won the 1949 British Grand Prix, and drove a Maserati voiturette. Following retirement, they managed a car dealership featuring Alfa Romeo, Rolls-Royce, and Ferrari, acted as a stunt double for Kirk Douglas in \"The Racers,\" and was a corporate ambassador for Phillip Morris' Marlboro brand.",
             "True Profession": "Formula One driver",
             "Generated Answer": "Businessman",
-            "Score": 3,
+            "Score": 4,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1525,7 +1525,7 @@
             "Anonymized Text": "An individual in the engineering field, active during the latter half of the 20th century, contributed to the development of advanced systems for national security applications. Known for a determined and occasionally unconventional approach, this person's forward-thinking work on complex projects led to a high-level role within a large industrial organization. After completing studies at several academic institutions, their career involved initial work on specialized systems before progressing to leadership roles in creating various high-performance technologies. Their contributions were acknowledged through multiple honors from professional associations and recognition from an educational institution. They lived into their late 90s.",
             "Loss Description": "The person designed the Convair B-58 Hustler, General Dynamics F-111 Aardvark, and General Dynamics F-16 Fighting Falcon; worked for Convair/General Dynamics/Lockheed Martin; and received the Reed Aeronautics Award and Spirit of St. Louis Medal.",
             "True Profession": "Aeronautical Engineer",
-            "Generated Answer": "President",
+            "Generated Answer": "**President**",
             "Score": 2,
             "Justification": "N/A (direct score)"
         },
@@ -1552,8 +1552,8 @@
             "Anonymized Text": "An individual from Europe, who was professionally active during the early-to-mid 1900s, received a high-level international honor for work in a scientific field. They collaborated on creating a device that contributed to progress in a medical specialty. This person publicly supported contentious social ideas prevalent among some thinkers of that era. They held a leadership position at a government-supported organization during a period of international turmoil, which later resulted in public scrutiny and official inquiries into their political activities. They were also recognized with honorary titles from a foreign scholarly institution on several occasions in the 1920s.",
             "Loss Description": "The person was a French surgeon and biologist who won the Nobel Prize in Physiology or Medicine in 1912 for pioneering vascular suturing techniques. They invented the first perfusion pump with Charles A. Lindbergh, opening the way to organ transplantation. They promoted eugenics and were a regent for the French Foundation for the Study of Human Problems during Vichy France. They were elected an honorary member of the Academy of Sciences of the USSR.",
             "True Profession": "Surgeon and biologist",
-            "Generated Answer": "Physician",
-            "Score": 6,
+            "Generated Answer": "**Surgeon**",
+            "Score": 8,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1562,7 +1562,7 @@
             "Loss Description": "The person was a Romanian footballer who played for the national team 21 times, appeared in the 1998 FIFA World Cup, and played for clubs including Universitatea Craiova, Valencia CF, Dinamo Bucureşti, Suwon Samsung Bluewings, and JEF United Ichihara Chiba.",
             "True Profession": "Footballer",
             "Generated Answer": "Footballer",
-            "Score": 10,
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1571,7 +1571,7 @@
             "Loss Description": "The person was a photographer and physicist who used a wide angle lens for panoramic photography. They contributed to the 'Changing Chicago' project for the Art Institute of Chicago, built their own panoramic cameras, and donated them to the George Eastman House. They had a Ph.D. in Physics from Brown University and an M.S. in photography from the Illinois Institute of Chicago's Institute of Design. They taught physics at Brown University and Purdue University.",
             "True Profession": "Panoramic Photographer",
             "Generated Answer": "Photographer",
-            "Score": 6,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1580,7 +1580,7 @@
             "Loss Description": "The person is Dražen Sermek, a Croatian chess player for Slovenia, who won the Slovenian Chess Championship (1993, 1998), was a Slovenia Olympic team member (1994, 2000, 2002, 2004, 2006), and had specific tournament victories/placements in Cannes (1997), Pula Open (2001), Dhaka (2002), Nova Gorica (2002), and Kuala Lumpur (2008). Their FIDE Elo rating was 2526.",
             "True Profession": "Chess Grandmaster",
             "Generated Answer": "Chess Player",
-            "Score": 7,
+            "Score": 10,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1589,7 +1589,7 @@
             "Loss Description": "The person is a classical pianist. Specific lost details include: performance of Chopin's \"Andante spianato and Grande Polonaise brillante\" with the Trinity College of Music Symphony Orchestra under James Judd; the specific names of competitions won (John Longmire Beethoven Competition, Beethoven Piano Society of Europe Intercollegiate Piano Competition, Elizabeth Schumann Lieder competition, Leonard Smith & Felicity Young Duo Competition, Alfred Kitchin Piano Competition); the name of their trio (The Greenwich Trio); and the performance of the Triple Concerto with conductor Barry Wordsworth.",
             "True Profession": "Classical Pianist",
             "Generated Answer": "Pianist",
-            "Score": 9,
+            "Score": 6,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1598,7 +1598,7 @@
             "Loss Description": "The person was a Formula One World Champion (1998, 1999) for McLaren, a former professional racing driver, and also competed in the Deutsche Tourenwagen Masters (DTM).",
             "True Profession": "Formula One World Champion",
             "Generated Answer": "Motorsport Consultant",
-            "Score": 4,
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1624,8 +1624,8 @@
             "Anonymized Text": "An individual born in the early 20th century was active in sports during their youth. They received higher education and learned their sport in the northeastern United States. In the early 1930s, they achieved notable success in national-level competitions, winning multiple singles championships and reaching a doubles final in a major tournament. They were also selected for international team competitions during this period. During World War II, this person served in the military, participating in numerous combat operations as a crew member on aircraft. They sustained injuries during service and received multiple military honors for their contributions.",
             "Loss Description": "The person was a tennis player who was a U.S. National Championships doubles runner-up in 1931, won the U.S. Indoor Championships singles title in 1932, 1933, 1935, and 1936, and was a member of the US Davis Cup teams. During WWII, they were a tail gunner on a B-17 Flying Fortress, flew 50 missions, and was awarded the Distinguished Flying Cross, Air Medal, and Purple Heart.",
             "True Profession": "Tennis player",
-            "Generated Answer": "Retired Military Officer",
-            "Score": 7,
+            "Generated Answer": "Academy Coach",
+            "Score": 1,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1652,7 +1652,7 @@
             "Loss Description": "The person was a civil engineer named Alfred John Sutton Pippard. He analyzed the design of the R100 and R101 airships, was President of the Institution of Civil Engineers (1958-9), chaired a pollution investigation of the Thames tideway, and was elected a Fellow of the Royal Society in 1954.",
             "True Profession": "Civil Engineer",
             "Generated Answer": "Professor",
-            "Score": 7,
+            "Score": 8,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1679,7 +1679,7 @@
             "Loss Description": "The person was the second human to orbit Earth on Vostok 2, was a Soviet cosmonaut, and later worked on the Spiral project. They proposed celebrating Cosmonautics Day on April 12.",
             "True Profession": "Cosmonaut",
             "Generated Answer": "Politician",
-            "Score": 7,
+            "Score": 4,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1688,7 +1688,7 @@
             "Loss Description": "The person played in the WNBA for the Phoenix Mercury, San Antonio Silver Stars, Minnesota Lynx, and Sacramento Monarchs; was selected 21st overall in the 2000 WNBA Draft; played in the 2003 WNBA All-Star Game; and averaged 4.9 points and 4.7 rebounds per game.",
             "True Profession": "WNBA Player",
             "Generated Answer": "Professional Basketball Player",
-            "Score": 9,
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1697,7 +1697,7 @@
             "Loss Description": "The person is a pianist who debuted at Carnegie Hall in 1961, performed Schumann's Piano Concerto with Zubin Mehta, was nominated for a Grammy for the Hindemith Sonata, and was a Professor Emeritus at the University of Western Ontario.",
             "True Profession": "Concert Pianist",
             "Generated Answer": "Pianist",
-            "Score": 9,
+            "Score": 10,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1706,7 +1706,7 @@
             "Loss Description": "The person was a small forward drafted by the Denver Nuggets, played for the Los Angeles Clippers, Detroit Pistons (winning the 2003-04 championship), and Indiana Pacers, and was signed after the Pacers–Pistons brawl.",
             "True Profession": "Former NBA Player",
             "Generated Answer": "Professional Basketball Player",
-            "Score": 9,
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1724,7 +1724,7 @@
             "Loss Description": "The person designed suede sportswear, won the Neiman Marcus Fashion Award in 1942, founded \"Suedes by Voris,\" and created a memorial bust of Gary Cooper.",
             "True Profession": "Suede fashion designer",
             "Generated Answer": "Painter",
-            "Score": 2,
+            "Score": 1,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1733,7 +1733,7 @@
             "Loss Description": "The person was a piano and composition pupil of Wolfgang Amadeus Mozart, for whom he wrote Piano Concertos No. 14 KV. 449 and No. 17 KV. 453, premiered at her residence.",
             "True Profession": "Pianist",
             "Generated Answer": "Pianist",
-            "Score": 10,
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1751,7 +1751,7 @@
             "Loss Description": "The person was Johann Karl Wilhelm Illiger, a German entomologist and zoologist. He was a professor and director of the zoological museum in Berlin, authored \"Prodromus systematis mammalium et avium\", edited the \"Magazin für Insektenkunde\", introduced the taxonomic order Proboscidea, and described the Pacific walrus subspecies.",
             "True Profession": "Zoologist",
             "Generated Answer": "Botanist",
-            "Score": 4,
+            "Score": 2,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1760,7 +1760,7 @@
             "Loss Description": "The person was a basketball player for S.L. Benfica, was the MAAC rookie of the year (1995) and first team All-MAAC (1996), was a key player for the University of Kentucky's 1998 NCAA championship team, and scored 23 points in the series-clinching game of the 2010 LPB championship.",
             "True Profession": "Professional Basketball Player",
             "Generated Answer": "Professional Basketball Player",
-            "Score": 10,
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1769,7 +1769,7 @@
             "Loss Description": "The person was a perfumer for Jean Patou, composed the perfumes 1000 and Sublime, founded the Osmothèque scent archive, and held the presidency of the Society of French Perfumers.",
             "True Profession": "Perfumer",
             "Generated Answer": "Fashion Designer",
-            "Score": 2,
+            "Score": 1,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1778,7 +1778,7 @@
             "Loss Description": "The person was the Director of the Palm Beach County Health Department, Chair at Nova Southeastern University College of Osteopathic Medicine, and played a key role in the 2001 anthrax attacks at American Media in Boca Raton, Florida. They were honored by the National Library of Medicine, the American Public Health Association's \"Faces of Public Health\" book by Pfizer, and received the J. Howard Beard Award.",
             "True Profession": "Public Health Official",
             "Generated Answer": "**Director of Public Health**",
-            "Score": 9,
+            "Score": 8,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1786,8 +1786,8 @@
             "Anonymized Text": "An individual born in 1936 in a small Midwestern town pursued a career as a professional athlete in a major American team sport during the late 1950s and early 1960s. Standing over six feet tall with an athletic build, they primarily competed for one prominent team in their league over several seasons. During their career, they achieved moderate success with some notable seasonal performances, including both winning and losing records in consecutive years. Their professional journey included a team transfer later in their career before concluding their time in the sport. Following their athletic career, they transitioned to a supervisory role in recreational sports management. They passed away in their late seventies in 2013, survived by their spouse of over five decades and their two children.",
             "Loss Description": "The person was a Major League Baseball pitcher named Glen Frederick Hobbie who played primarily for the Chicago Cubs, won 16 games in 1959 and 1960, lost 20 games in 1960, and was later traded to the St. Louis Cardinals. After baseball, he worked as a supervisor for the Roller Derby Association.",
             "True Profession": "Pitcher",
-            "Generated Answer": "Baseball Coach",
-            "Score": 3,
+            "Generated Answer": "**Recreational Sports Manager**",
+            "Score": 4,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1795,8 +1795,8 @@
             "Anonymized Text": "An individual from a European country achieved elite status in a competitive athletic field, attaining the highest possible ranking in one discipline and a prominent position in another. They were part of a select group of their compatriots to reach such heights and set an age-related milestone for newcomers to this level. Their global recognition increased following a premier international competition where they progressed to the final rounds and defeated a dominant figure in the sport, thwarting a potential historic milestone. They were ultimately bested by another competitor from their nation in the championship match. Over their career, they accumulated many professional victories across both individual and team formats, including multiple prestigious championships that collectively represented a rare feat in their field. They played a significant role in their national team's successes in global contests, contributing to multiple trophy wins against various opposing nations. Their career featured consistent advancement in top-tier events, with significant victories over highly regarded opponents and competitive losses to familiar rivals.",
             "Loss Description": "The person was a tennis player who was World No. 1 in doubles, reached a career-high of World No. 7 in singles, defeated Serena Williams at the 2015 US Open, and won Grand Slam doubles titles (French Open, US Open, Australian Open, Wimbledon) with Sara Errani.",
             "True Profession": "Professional Tennis Player",
-            "Generated Answer": "Professional Tennis Player",
-            "Score": 10,
+            "Generated Answer": "Tennis Player",
+            "Score": 6,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1805,7 +1805,7 @@
             "Loss Description": "The person was a County and District Surveyor; County Auditor; member of the Ohio State House of Representatives; Register (appointed by Presidents Monroe and Adams); a merchant in Wooster; a Presidential elector for Clay/Frelinghuysen; a member of the State Board of Equalization; a delegate to the Whig National Convention; a director of the Ohio Penitentiary; and was elected as a Republican to the Thirty-sixth Congress.",
             "True Profession": "Surveyor",
             "Generated Answer": "United States Representative",
-            "Score": 7,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1841,7 +1841,7 @@
             "Loss Description": "The person was a civil engineer named Sir George Cunningham Buchanan. Specific lost details: harbour works in Burma, Iraq, and Bombay; collaboration with Patrick Meik on the Rangoon River training works; role as Director-General of Port Administration and River Conservancy in Mesopotamia; authorship of \"The Tragedy of Mesopotamia\"; membership on the Indian Munitions Board; the Bombay Backbay reclamation project (Lloyd's Folly); expulsion from the Institution of Civil Engineers; a 1926 report on Australia's ports; and the firm's name change to CS Meik and Halcrow.",
             "True Profession": "Civil engineer",
             "Generated Answer": "Civil Engineer",
-            "Score": 10,
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1850,7 +1850,7 @@
             "Loss Description": "The person was the host of *The Daily Show* on Comedy Central from 1999 to 2015, which won 22 Primetime Emmy Awards. They also hosted the 78th and 80th Academy Awards and are the co-author of *America (The Book)* and *Earth (The Book)*.",
             "True Profession": "Satirical news host",
             "Generated Answer": "Writer",
-            "Score": 4,
+            "Score": 6,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1868,7 +1868,7 @@
             "Loss Description": "The person is Mikey Mileos, a stand-up comedian and comedy writer. They were a national finalist in Triple J's Raw Comedy, performed at the Sydney Comedy Festival's Cracker Night gala, wrote for the TV show 'Good News Week', and wrote for 'Zoo Weekly' magazine.",
             "True Profession": "Stand-up comedian and comedy writer",
             "Generated Answer": "Comedian",
-            "Score": 8,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1886,7 +1886,7 @@
             "Loss Description": "The person was a Democratic U.S. Representative from Pennsylvania, elected to the Sixty-third and Sixty-fifth Congresses, and was a delegate at large to the 1920 Democratic National Convention.",
             "True Profession": "U.S. Representative",
             "Generated Answer": "U.S. Representative",
-            "Score": 10,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1904,7 +1904,7 @@
             "Loss Description": "The person was an architect named Alexander Buchanan Campbell. Specific works lost are the Dollan Baths in East Kilbride, Craigie College in Ayr, and alterations to Notre Dame College. He was influenced by the Beaux-Arts style, Pier Luigi Nervi, and Kenzo Tange. He gifted his papers to the Royal Commission on the Ancient and Historical Monuments of Scotland.",
             "True Profession": "Scottish architect",
             "Generated Answer": "Architect",
-            "Score": 9,
+            "Score": 10,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1922,7 +1922,7 @@
             "Loss Description": "The person was a Major League Baseball pitcher for the St. Louis Cardinals in 1934, involved in a trade where Branch Rickey offered him and Bill Lee to the Chicago Cubs.",
             "True Profession": "Major League Baseball pitcher",
             "Generated Answer": "Baseball Player",
-            "Score": 6,
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1939,8 +1939,8 @@
             "Anonymized Text": "An innovator from the early-to-mid twentieth century created an initial technical device for a relative. They subsequently refined their approach to managing recorded content, which attracted institutional backing and led to a research affiliation. During a significant international military engagement, their early inventions were employed for training and tactical deception, with these applications remaining undisclosed for many years. They obtained numerous legal protections for their developments, mainly concerning electronic information systems. After their formal education, they were later granted an honorary distinction by their academic institution. Decades later, they authored a speculative document envisioning compact, mechanically simple data storage devices and anticipated various forms of electronic content distribution and remote services. Their career accomplishments were recognized with a high-level national honor, and they eventually passed away from natural causes in a residential community.",
             "Loss Description": "The person was named Marvin Camras, an electrical engineer and inventor in magnetic recording. He built a wire recorder, discovered magnetic tape's advantages, worked at Armour Research Foundation/IIT, received U.S. Patent 2,351,004, and over 500 patents. His recorders were used for WWII pilot training and D-Day deception. He predicted portable media players, digital downloads, and online services. He received the National Medal of Technology.",
             "True Profession": "Electrical Engineer and Inventor",
-            "Generated Answer": "Academic",
-            "Score": 4,
+            "Generated Answer": "Engineer",
+            "Score": 6,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1949,7 +1949,7 @@
             "Loss Description": "The person was a primary disciple of Wu Quanyou, led the Wu-style Beijing group, founded the Beijing Tai Miao t'ai chi ch'uan Research Centre, and co-authored \"The record of Wu Style Tai Chi Chuan\" with Wu Chien-ch'uan and Guo Fen.",
             "True Profession": "Tai Chi Master",
             "Generated Answer": "Martial Arts Instructor",
-            "Score": 8,
+            "Score": 7,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1958,7 +1958,7 @@
             "Loss Description": "The person is a photographer for Cliché Magazine; their work was displayed at The Andy Warhol Museum; they were selected by Glenn Kaino for the \"Uberstars\" exhibit; they provided photography for the band The Maine's book; and they have worked with designers Skin Graft Designs and Brian Lichtenberg.",
             "True Profession": "Music and Fashion Photographer",
             "Generated Answer": "Photographer",
-            "Score": 6,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1976,7 +1976,7 @@
             "Loss Description": "The person is a three-time Grand Slam tennis champion (2007 Wimbledon mixed doubles, 2016 Australian Open men's doubles, 2016 US Open men's doubles), a Davis Cup champion with Great Britain in 2015, and a former world No. 1 doubles player. Key partners included Jelena Janković, Bruno Soares, and John Peers.",
             "True Profession": "Doubles Tennis Specialist",
             "Generated Answer": "Professional Tennis Player",
-            "Score": 6,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1984,8 +1984,8 @@
             "Anonymized Text": "An individual has been involved in a martial art since childhood, beginning their training in their home country. They achieved an advanced rank in this discipline at a young age and currently hold a senior-level rank. This person has some experience in full-contact fighting and is noted for their creative approach within their field. They have achieved success in multiple major competitions in their discipline over several years and are affiliated with several official organizations in their field. After previously teaching in their home country, they now operate a training facility in a coastal city and oversee additional locations managed by other senior practitioners. They frequently travel to share their expertise with others in their discipline and have established a network of associated schools internationally. They remain active in competition, with recent participations and victories in several prominent events.",
             "Loss Description": "The person is a Brazilian Jiu Jitsu competitor and instructor named Robson Moura. He won his division in the BJJ Mundials from 1996-2000 and again in 2007, and runs the Robson Moura Brazilian Jiu Jitsu Academy in Tampa, Florida. He established the Robson Moura Association and has competed in events like the Rickson Gracie Invitational, Polaris, and the Abu Dhabi World Pro.",
             "True Profession": "Brazilian Jiu Jitsu Instructor",
-            "Generated Answer": "**Head Instructor**",
-            "Score": 9,
+            "Generated Answer": "Head Coach",
+            "Score": 8,
             "Justification": "N/A (direct score)"
         },
         {
@@ -1994,7 +1994,7 @@
             "Loss Description": "The person was an architect named George M. Kerns who practiced in Ottumwa, Iowa. Specific works lost include the B'nai Jacob Synagogue, Dahlonega School No. 1, J.W. Garner Building, Ottumwa Cemetery Gateway and Office, Ottumwa National Guard Armory, and others, all listed on the U.S. National Register of Historic Places.",
             "True Profession": "Architect",
             "Generated Answer": "Architect",
-            "Score": 10,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -2011,7 +2011,7 @@
             "Anonymized Text": "An individual from a specific ethnic background, who was born outside their ancestral homeland, gained recognition in their community after achieving success in a major continental competition during a past decade. Their athletic career began in the late 1960s under the guidance of a coach, and they quickly found success in regional youth competitions. They represented a former multinational state in international sports from the late 1960s through the mid-1970s, winning national-level championships and multiple military sports titles. Their achievements included victories in several international competitions across different regions and success in multinational sporting events. Throughout their career, they competed against and defeated numerous accomplished athletes from various countries who had won significant international honors.",
             "Loss Description": "The person is a Chechen wrestler named Bekhan Tungaev. Specific lost details include: winning a European championship in the 1970s, the 1970 USSR championship, three-time champion of the Soviet Armed Forces, two-time winner of the Soviet Cup, winner of international tournaments in Mongolia, Turkey, Iran, Hungary, Romania, and the names of defeated world, European, and Olympic champions.",
             "True Profession": "Wrestler",
-            "Generated Answer": "Academy Coach",
+            "Generated Answer": "Boxer",
             "Score": 2,
             "Justification": "N/A (direct score)"
         },
@@ -2021,7 +2021,7 @@
             "Loss Description": "The person is a footballer (attacking midfielder) named Taher Mohamed Ahmed Taher. He plays for French club Le Havre (on loan from El Mokawloon) and the Egypt U-20 team. He was selected by US ESPN among the top 10 players eligible for the 2018 World Cup. He played his first senior match for Arab Contractors FC against Al Ahly.",
             "True Profession": "Attacking Midfielder",
             "Generated Answer": "Professional Footballer",
-            "Score": 6,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -2030,7 +2030,7 @@
             "Loss Description": "The person is a Polish chess Grandmaster named Mateusz Bartel. He won the Polish Chess Championship in 2006, 2010, 2011, and 2012. He won the 11th Aeroflot Open in 2012 and a bronze medal at the 2015 European Individual Championship. He played for Poland in multiple Chess Olympiads, winning a silver and later a gold medal in 2010.",
             "True Profession": "International Grandmaster",
             "Generated Answer": "Chess Player",
-            "Score": 6,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -2039,7 +2039,7 @@
             "Loss Description": "The person was a U.S. Congressman representing Georgia's 4th district (33rd Congress), a colonel in the Georgia Militia during the Creek War, a member of the Georgia House of Representatives, a judge of the inferior court of Coweta County, and a key founding member of Newnan, Georgia.",
             "True Profession": "U.S. Congressman",
             "Generated Answer": "Member of the U.S. House of Representatives",
-            "Score": 10,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -2048,7 +2048,7 @@
             "Loss Description": "The person is a Russian chess player named Anna Styazhkina, a Woman International Master. Specific achievements lost include winning the World Youth Chess Championship (U10 girls 2007, U16 girls 2012), other world and European youth titles, winning the 2016 Women's Saint Petersburg Chess Championship, and playing for the \"Peter Rook 1\" team. Family details lost are that her father, Viacheslav, is an International Master and was Peter Svidler's first trainer, and her mother, Olga, is a Woman Grandmaster.",
             "True Profession": "Woman International Master",
             "Generated Answer": "Chess Player",
-            "Score": 6,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -2057,7 +2057,7 @@
             "Loss Description": "The person is a Greek-German footballer who plays as a Defender and Winger for AE Larissa. Specific clubs lost include FSV Erlangen-Bruck, SSV Jahn Regensburg II, Freier TuS Regensburg, AO Chania, A.O. Trikala, and Pydna Kitrous, along with the leagues Bayernliga, Greek Football League, and Greek Gamma Ethniki.",
             "True Profession": "Footballer",
             "Generated Answer": "Footballer",
-            "Score": 10,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -2075,7 +2075,7 @@
             "Loss Description": "The person was a pianist; performed with the Berlin City Orchestra conducted by Fritz Zaun in 1943; collaborated with violinist Suna Kan; premiered 22 piano concertos in Turkey; and taught specific students like Hüseyin Sermet and Suna Kan.",
             "True Profession": "Pianist",
             "Generated Answer": "Pianist",
-            "Score": 10,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -2101,7 +2101,7 @@
             "Anonymized Text": "An American artist, born in the 1920s in a West Coast city, pursued creative studies for a brief period but is largely self-taught. This individual has received multiple recognitions in a specific painting medium and has participated in a prestigious national exhibition program. Their work includes artistic interpretations of a significant technological event, created through an official science and technology initiative. To achieve distinctive textural effects, the artist developed an innovative method involving applying pigment to both sides of the surface material while it remains moist, creating layered impressions through transfer techniques. This approach continues until sufficient visual complexity emerges to imply form and arrangement. Typically working in a studio setting without preliminary references, the creator allows the medium itself to direct the artistic outcome. The artist also employs conventional approaches, applying color directly to the surface while observing the subject. Their creations are included in numerous institutional and organizational holdings. They have presented individual shows across multiple American regions and contributed to collective exhibitions internationally.",
             "Loss Description": "The person is a painter named Lee Weiss who won watercolor awards, exhibited in the White House Rotating Exhibition Program, painted a space shuttle launch for the NASA art program in 1984, and invented a specific watercolor technique.",
             "True Profession": "Watercolorist",
-            "Generated Answer": "Painter",
+            "Generated Answer": "Artist",
             "Score": 6,
             "Justification": "N/A (direct score)"
         },
@@ -2111,7 +2111,7 @@
             "Loss Description": "The person was a Polish cyclist who won two silver medals at the World Cycling Championships, competed in the Summer Olympics, and won stages of the Tour de Pologne, Peace Race, and Milk Race.",
             "True Profession": "Road cyclist",
             "Generated Answer": "Businessman",
-            "Score": 4,
+            "Score": 8,
             "Justification": "N/A (direct score)"
         },
         {
@@ -2120,7 +2120,7 @@
             "Loss Description": "The person was a male tennis player from South Africa named Louis Bosman Raymond. He won an Olympic gold medal at the 1920 Antwerp Games by defeating Ichiya Kumagai, won the South African Championships six times, reached the Wimbledon semifinal in 1924, and was described in Bill Tilden's book, \"The Art of Lawn Tennis.\"",
             "True Profession": "Olympic Gold Medalist Tennis Player",
             "Generated Answer": "Tennis Player",
-            "Score": 7,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -2129,7 +2129,7 @@
             "Loss Description": "The person was a Thoroughbred horse trainer named James W. \"Jimmy\" Smith. He trained for clients Charles T. Fisher, Edward R. Bradley, and Maine Chance Farm. He won the 1940 Arlington Classic with Sirocco, had three horses in the 1946 Kentucky Derby, and trained Champions Busher, By Jimminy, Bridal Flower, Myrtle Charm, But Why Not, Star Pilot, and Beaugay.",
             "True Profession": "Thoroughbred horse trainer",
             "Generated Answer": "Trainer",
-            "Score": 8,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -2138,7 +2138,7 @@
             "Loss Description": "The person was a Thoroughbred racehorse trainer named Gary F. Jones, elected to the National Museum of Racing’s Hall of Fame in 2014. He trained horses including Turkoman (1986 Champion Older Male) and Hall of Famer Best Pal, set a Santa Anita record with 47 wins in 1976, and won major races like the Pacific Classic, Santa Anita Handicap, and Hollywood Gold Cup.",
             "True Profession": "Thoroughbred Horse Trainer",
             "Generated Answer": "Retired Horse Trainer",
-            "Score": 8,
+            "Score": 9,
             "Justification": "N/A (direct score)"
         },
         {
@@ -2156,7 +2156,7 @@
             "Loss Description": "The person is an actress, comedian, writer, producer, and television host named Kathy Griffin. Specific lost details include: membership in The Groundlings; the sitcom *Suddenly Susan*; the reality show *Kathy Griffin: My Life on the D-List* and its two Emmy Awards; six Grammy-nominated comedy albums, with *For Your Consideration* being the first by a female comedian to top the Billboard chart; a record 16 Bravo specials; a 2014 Grammy win for Best Comedy Album; and influences Joan Rivers and Don Rickles.",
             "True Profession": "Stand-up comedian",
             "Generated Answer": "Comedian",
-            "Score": 9,
+            "Score": 8,
             "Justification": "N/A (direct score)"
         }
     ]

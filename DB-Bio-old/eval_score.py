@@ -20,22 +20,22 @@ class Config:
     LLM_DEVICE = "cuda:1" if torch.cuda.is_available() and torch.cuda.device_count() > 1 else UEM_DEVICE
 
     # --- DeepSeek API 配置 ---
-    DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY")
+    DEEPSEEK_API_KEY = os.environ.get("API_KEY")
     DEEPSEEK_API_BASE = "https://api.deepseek.com/v1"
     JUDGE_MODEL_NAME = "deepseek-chat"
 
     # --- 模型路径 ---
     LLM_PATH = "/root/autodl-tmp/huggingface/hub/models--meta-llama--Meta-Llama-3-8B-Instruct/snapshots/8afb486c1db24fe5011ec46dfbe5b5dccdb575c2"
     UEM_PATH = "/root/autodl-tmp/huggingface/hub/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09"
-    CKPT_PATH = ""
+    CKPT_PATH = "/root/autodl-tmp/PPPUE/DB-Bio-old/ckpt/strict_strategy/best_model_epoch_8"
     
     # --- 数据文件 ---
-    INPUT_DATA_FILE = "" 
-    OUTPUT_DIR = "/root/autodl-tmp/PPPUE/DB-Bio/results/strict_strategy/score"
+    INPUT_DATA_FILE = "/root/autodl-tmp/PPPUE/DB-Bio-old/benchmark/reprocess/strict_strategy/test/anony_test_with_loss_relabel.jsonl" 
+    OUTPUT_DIR = "/root/autodl-tmp/PPPUE/DB-Bio-old/results/strict_strategy/score"
     
     # --- 实验设置 ---
-    EVAL_MODE = "" # Options: BASELINE, STANDARD, CLIPPING_ONLY, DP, ORIGINAL_TEXT_BASELINE
-    EPSILON = 100.0
+    EVAL_MODE = "DP" # Options: BASELINE, STANDARD, CLIPPING_ONLY, DP, ORIGINAL_TEXT_BASELINE
+    EPSILON = 50.0
     CLIPPING_NORM = 1.0
     PREFIX_LENGTH = 5
     LIMIT = None

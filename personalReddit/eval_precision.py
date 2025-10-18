@@ -19,28 +19,27 @@ class Config:
     LLM_DEVICE = "cuda:1" if torch.cuda.is_available() and torch.cuda.device_count() > 1 else "cuda:0"
 
     # --- DeepSeek API 配置 ---
-    DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY")
+    DEEPSEEK_API_KEY = os.environ.get("API_KEY")
     DEEPSEEK_API_BASE = "https://api.deepseek.com/v1"
     JUDGE_MODEL_NAME = "deepseek-chat"
 
     # --- 模型路径 ---
     LLM_PATH = "/root/autodl-tmp/huggingface/hub/models--meta-llama--Meta-Llama-3-8B-Instruct/snapshots/8afb486c1db24fe5011ec46dfbe5b5dccdb575c2"
     IEM_PATH = "/root/autodl-tmp/huggingface/hub/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09"
-    # 修改：CKPT_PATH 现在指向一个目录
-    CKPT_PATH = "/root/autodl-tmp/PPPUE/ckpt/prefix_lora"
+    CKPT_PATH = "/root/autodl-tmp/PPPUE/personalReddit/ckpt/Prefix_LoRA"
     
     # --- 数据文件 ---
-    INPUT_DATA_FILE = "/root/autodl-tmp/PPPUE/benchmark/reprocess/test/test_anony_with_loss.jsonl" 
-    OUTPUT_DIR = "/root/autodl-tmp/PPPUE/results"
+    INPUT_DATA_FILE = "/root/autodl-tmp/PPPUE/personalReddit/benchmark/reprocess/test/test_anony_with_loss.jsonl" 
+    OUTPUT_DIR = "/root/autodl-tmp/PPPUE/personalReddit/results/LoRA_Prefix/strict_prompt"
     
     # --- 实验设置 ---
-    EVAL_MODE = "BASELINE" # Options: BASELINE, STANDARD, CLIPPING_ONLY, DP, ORIGINAL_TEXT_BASELINE
-    EPSILON = 50.0
+    EVAL_MODE = "CLIPPING_ONLY" # Options: BASELINE, STANDARD, CLIPPING_ONLY, DP, ORIGINAL_TEXT_BASELINE
+    EPSILON = 100.0
     CLIPPING_NORM = 1.0
     PREFIX_LENGTH = 5
     LIMIT = None
 
-    # 添加 LoRA 配置，与 train.py 保持一致
+    # 添加 LoRA 配置
     LORA_R = 16
     LORA_ALPHA = 32
     LORA_DROPOUT = 0.1
@@ -206,7 +205,6 @@ def evaluate_single_entry(
         attention_mask = torch.ones(combined_embeds.shape[:2], dtype=torch.long, device=combined_embeds.device)
 
         # 6. 使用拼接好的嵌入和 attention_mask 进行生成
-        # 修改：使用 eval_model.llm_student (LoRA 学生模型) 而不是 shared_llm
         outputs = eval_model.llm_student.generate(
             inputs_embeds=combined_embeds, 
             attention_mask=attention_mask,
@@ -344,7 +342,6 @@ if __name__ == "__main__":
     parser.add_argument('--mode', type=str, help=f"Evaluation mode.")
     parser.add_argument('--limit', type=int, help="Limit the number of records to process.")
     parser.add_argument('--input', type=str, help="Path to the pre-anonymized input data file.")
-    # 在命令行参数解析部分，相应地更新帮助文本
     parser.add_argument('--ckpt', type=str, help="Path to the checkpoint directory containing model components.")
     args = parser.parse_args()
 
