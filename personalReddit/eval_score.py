@@ -1,30 +1,14 @@
-import torch
-import json
-import os
-from tqdm import tqdm
-from transformers import AutoTokenizer, AutoModelForCausalLM
-from peft import PeftModel
-from typing import Dict, List, Any, Optional
-from datetime import datetime
-from openai import OpenAI
-from torch.cuda.amp import autocast
-import re
-
-# Assume train.py defines these correctly for the personalReddit task
-# Make sure train.py is accessible
-try:
-    from train import TrainableEnhancer, REDDIT_PROMPT_SYSTEM, REDDIT_PROMPT_USER
-except ImportError:
-    print("Error: Could not import from train.py. Make sure it's in the Python path or current directory.")
-    exit()
-
-# Ensure _utils/model.py exists and load_local_model is correctly defined
-# Make sure _utils/model.py is accessible
-try:
-    from _utils.model import load_local_model
-except ImportError:
-    print("Error: Could not import from _utils/model.py. Make sure it exists and is accessible.")
-    exit()
+import os # 读取环境变量
+import re # 正则表达式处理
+import json # 读写 JSON 文件
+import torch # PyTorch 库
+from tqdm import tqdm # 进度条显示
+from transformers import AutoTokenizer, AutoModelForCausalLM # 预训练模型和分词器
+from peft import PeftModel # LoRA 模型处理
+from typing import Dict, List, Optional # 类型提示
+from openai import OpenAI # DeepSeek API 客户端
+from torch.cuda.amp import autocast # 自动混合精度
+from train import TrainableEnhancer, REDDIT_PROMPT_SYSTEM, REDDIT_PROMPT_USER # 自定义训练模块和提示词模板
 
 # --- 1. 配置类 ---
 class Config:
@@ -33,7 +17,6 @@ class Config:
     LLM_DEVICE = "cuda:1" if torch.cuda.is_available() and torch.cuda.device_count() > 1 else IEM_DEVICE
 
     # --- DeepSeek API 配置 ---
-    # 确保 API_KEY 在您的环境中设置
     DEEPSEEK_API_KEY = os.environ.get("API_KEY")
     DEEPSEEK_API_BASE = "https://api.deepseek.com/v1"
     JUDGE_MODEL_NAME = "deepseek-chat"
@@ -61,9 +44,11 @@ class Config:
     LORA_TARGET_MODULES = ["q_proj", "k_proj", "v_proj", "o_proj"]
 
 # --- 2. 提示词模板和辅助函数 ---
+JUDGE_PROMPT_SYSTEM = """
+You are an evaluation expert. Output ONLY a single integer score between 1 and 10 based on the provided rubric and context.
+"""
 
-# --- MODIFIED Judge Prompt for Score-Only Output ---
-PROMPT_JUDGE = """
+JUDGE_PROMPT_USER = """
 Role: You are a highly discerning evaluation expert with deep contextual understanding of professional roles and their nuances.
 
 Task: Evaluate the quality of a "Generated Answer" regarding a person's occupation, using the full **[Original User Response]** (provided in the context of the **[Question Asked]**) as the ultimate source of truth. The "Generated Answer" was produced by an AI that saw the [Question Asked] and an ANONYMIZED version of the [User Response]. Focus on **how well the AI's answer reflects specific, nuanced occupation-related information present *only* in the [Original User Response]**.
@@ -130,8 +115,24 @@ Your Output: 2
 Your Output:
 """
 
+def load_local_model(model_path: str, device: str):
+    '''加载本地模型和分词器，用于评估任务'''
+    print(f"Loading local model from: {model_path} onto {device}...")
+    model = AutoModelForCausalLM.from_pretrained(
+        model_path, 
+        device_map=device,
+        torch_dtype=torch.float16,
+        trust_remote_code=True
+    )
+    tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.padding_side = 'left'
+    print(f"Local model loaded successfully.")
+    return model, tokenizer
+
 def generate_api_response(client: OpenAI, model: str, messages: List[Dict], temperature: float) -> str:
-    # (保持不变)
+    '''调用 DeepSeek API 生成响应'''
     try:
         completion = client.chat.completions.create(model=model, messages=messages, temperature=temperature)
         content = completion.choices[0].message.content
@@ -143,17 +144,16 @@ def generate_api_response(client: OpenAI, model: str, messages: List[Dict], temp
         return "API_ERROR"
 
 def save_results(config: Config, metrics: Dict, samples: List[Dict]):
-    # (保持不变, 确保创建 OUTPUT_DIR)
+    '''保存评估结果和样本到 JSON 文件'''
     os.makedirs(config.OUTPUT_DIR, exist_ok=True)
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"eval_{config.EVAL_MODE}_eps{config.EPSILON}_{timestamp}.json" # Updated filename
+    filename = f"eval_{config.EVAL_MODE}_eps{config.EPSILON}.json"
     filepath = os.path.join(config.OUTPUT_DIR, filename)
 
     output_data = {
         "config": {k: v for k, v in vars(config).items() if not k.startswith('__') and isinstance(v, (str, int, float, bool, list, dict, type(None)))},
         "metrics": metrics,
-        "qualitative_samples": samples # Samples will no longer have justification
+        "qualitative_samples": samples
     }
 
     with open(filepath, 'w', encoding='utf-8') as f:
@@ -161,66 +161,59 @@ def save_results(config: Config, metrics: Dict, samples: List[Dict]):
 
     print(f"\nEvaluation results saved to: {filepath}")
 
-# --- MODIFIED Judge Function for Score-Only Output ---
 def judge_prediction(generated_answer: str, ground_truth_label: str, original_text: str, question_asked: str, judge_client: OpenAI, config: Config) -> Optional[int]: # Return Optional[int]
-    judge_prompt = PROMPT_JUDGE.format(
+    '''使用 Judge 模型对生成的答案进行评分'''
+    judge_prompt_user = JUDGE_PROMPT_USER.format(
         question_asked=question_asked,
         original_text=original_text,
         ground_truth_label=ground_truth_label,
         generated_answer=generated_answer
     )
-    # 更新的系统消息 - 要求只输出数字
-    system_message = "You are an evaluation expert. Output ONLY a single integer score between 1 and 10 based on the provided rubric and context."
 
     score_str = generate_api_response(
         judge_client,
         config.JUDGE_MODEL_NAME,
-        [{"role": "system", "content": system_message},
-         {"role": "user", "content": judge_prompt}],
-        0.0 # Temperature 0
+        [{"role": "system", "content": JUDGE_PROMPT_SYSTEM},
+         {"role": "user", "content": judge_prompt_user}],
+        0.0
     )
 
     if score_str == "API_ERROR":
         tqdm.write(f"  - API Error during judging.")
-        return 1 # Default error score
+        return 1
 
     try:
-        # Clean the string: remove surrounding whitespace, code blocks etc.
-        # Find the first sequence of digits
         match = re.search(r'\d+', score_str)
         if match:
              score = int(match.group(0))
-             # Clamp score to 1-10
              if not (1 <= score <= 10):
                  tqdm.write(f"  - WARNING: Judge returned score outside 1-10 range: {score}. Clamping.")
                  score = max(1, min(10, score))
              return score
         else:
-             # Handle cases where LLM might output text like "Score: 7" or just "7."
              tqdm.write(f"  - ERROR: Could not parse score from judge response: '{score_str}'. Returning default score 1.")
-             return 1 # Default error score if no digits found
+             return 1
 
     except ValueError:
         tqdm.write(f"  - ERROR: Judge response was not a valid number: '{score_str}'. Returning default score 1.")
-        return 1 # Default error score if conversion fails
+        return 1
 
-# --- 3. 评估模块 (evaluate_single_entry) ---
-# (保持不变)
+# --- 3. 评估模块 ---
 @torch.no_grad()
 def evaluate_single_entry(
-    data: Dict, eval_model: Optional[TrainableEnhancer], shared_llm: AutoModelForCausalLM, # Added Optional type hint
+    data: Dict, eval_model: Optional[TrainableEnhancer], shared_llm: AutoModelForCausalLM,
     shared_tokenizer: AutoTokenizer, config: Config
 ) -> str:
     question_asked = data.get('question_asked', '')
 
     if config.EVAL_MODE == "ORIGINAL_TEXT_BASELINE":
-        text_for_inference = data.get('response', '') # Use original response
+        text_for_inference = data.get('response', '')
     else:
-        text_for_inference = data.get('anonymized_response', '') # Use anonymized response
+        text_for_inference = data.get('anonymized_response', '')
 
     generate_kwargs = {"max_new_tokens": 30, "temperature": 0.1, "do_sample": True, "repetition_penalty": 1.2}
 
-    if config.EVAL_MODE in ["BASELINE", "ORIGINAL_TEXT_BASELINE"] or eval_model is None: # Added check for eval_model is None
+    if config.EVAL_MODE in ["BASELINE", "ORIGINAL_TEXT_BASELINE"] or eval_model is None:
         user_prompt = REDDIT_PROMPT_USER.format(question_asked=question_asked, user_response=text_for_inference)
         conversation = [
             {"role": "system", "content": REDDIT_PROMPT_SYSTEM},
@@ -239,11 +232,11 @@ def evaluate_single_entry(
             **generate_kwargs
         )
         generated_ids = outputs[:, llm_inputs['input_ids'].shape[1]:]
-    else: # This block now requires eval_model to be not None
+    else:
         loss_desc_sentence = data.get('loss_description_sentence', '')
         anonymized_text = data.get('anonymized_response', '')
 
-        # 1. IEM (UEM) encoding on IEM_DEVICE
+        # 1. UEM Encoding and Projection
         if not hasattr(eval_model, 'uem') or not hasattr(eval_model, 'uem_tokenizer') or not hasattr(eval_model, 'projection_layer'):
              raise ValueError("eval_model is missing required attributes (uem, uem_tokenizer, projection_layer).")
 
@@ -255,7 +248,7 @@ def evaluate_single_entry(
 
         clean_prefix = clean_prefix.view(-1, config.PREFIX_LENGTH, shared_llm.config.hidden_size)
 
-        # 2. Process prefix (Clipping/DP)
+        # 2. Prefix Processing Based on Mode
         if config.EVAL_MODE == "STANDARD":
             prefix_vector = clean_prefix
         else: # CLIPPING_ONLY or DP
@@ -268,7 +261,7 @@ def evaluate_single_entry(
                 sigma = (2 * config.CLIPPING_NORM) / (config.EPSILON + 1e-9)
                 noise = torch.randn_like(clipped_prefix) * sigma
                 prefix_vector = clipped_prefix + noise
-            else: # Fallback should ideally not happen if mode is validated
+            else:
                 prefix_vector = clean_prefix
 
         prefix_embeds = prefix_vector.to(device=config.LLM_DEVICE, dtype=shared_llm.dtype)
@@ -321,7 +314,7 @@ def evaluate_single_entry(
 
     decoded_text = shared_tokenizer.decode(generated_ids[0], skip_special_tokens=True).strip()
 
-    # --- 后处理：尝试提取单个职业 --- (保持不变)
+    # --- 后处理：尝试提取单个职业 ---
     lines = decoded_text.split('\n')
     potential_occupation = lines[-1].strip().rstrip('.,!?"\'')
     common_prefixes = ["Based on the text, the user is likely a ", "The user is likely a ", "I believe this person is a ", "Occupation: ", "Profession: "]
@@ -442,15 +435,14 @@ def main(config: Config):
                 score = judge_prediction(predicted_text, true_label, original_response, question_asked, api_client, config)
 
                 # --- Update Metrics ---
-                if score is not None: # Check if judging was successful
+                if score is not None:
                     total_score += score
                     if score >= 9:
                         excellent_recovery_count += 1
                     valid_records_processed += 1
                 else:
-                    # If judge_prediction returned None (e.g., severe parsing error, though unlikely with current code)
                     tqdm.write(f"Skipping metrics update for record {i+1} due to judging error.")
-                    continue # Skip logging and sample saving for this record
+                    continue
 
                 # --- Logging ---
                 current_avg_score = total_score / valid_records_processed if valid_records_processed > 0 else 0
@@ -515,8 +507,6 @@ def main(config: Config):
         print("\nNo results saved as no records were successfully processed.")
 
 if __name__ == "__main__":
-    # 命令行解析部分已被移除。
-    # 要更改设置，请直接修改上面的 Config 类。
     config = Config()
 
     # --- 路径验证 ---

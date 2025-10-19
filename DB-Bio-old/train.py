@@ -1,6 +1,3 @@
-import warnings
-warnings.filterwarnings("ignore", category=FutureWarning)
-
 import os
 import json
 import torch
@@ -24,8 +21,8 @@ VAL_DATA_FILE = "/root/autodl-tmp/PPPUE/DB-Bio/benchmark/reprocess/loose_strateg
 CKPT_DIR = "/root/autodl-tmp/PPPUE/DB-Bio/ckpt/loose_strategy"
 
 # 训练超参数
-LEARNING_RATE_UEM = 2e-6
-LEARNING_RATE_LORA = 2e-5
+LEARNING_RATE_UEM = 1e-6
+LEARNING_RATE_LORA = 1e-5
 EPOCHS = 50
 BATCH_SIZE = 1
 PREFIX_LENGTH = 5
@@ -455,7 +452,7 @@ def main():
         # 保存最佳模型
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            epoch_ckpt_dir = os.path.join(CKPT_DIR, f"best_model_epoch_{epoch + 1}")
+            epoch_ckpt_dir = os.path.join(CKPT_DIR, f"best_model")
             os.makedirs(epoch_ckpt_dir, exist_ok=True)
 
             # 保存 LoRA 适配器

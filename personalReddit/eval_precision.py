@@ -4,18 +4,17 @@ import os
 import argparse
 from tqdm import tqdm
 from transformers import AutoTokenizer, AutoModelForCausalLM
-from peft import LoraConfig, get_peft_model, TaskType, PeftModel
+from peft import PeftModel
 from typing import Dict, List
 from datetime import datetime
 from openai import OpenAI
-
 from torch.cuda.amp import autocast
 from train import TrainableEnhancer, REDDIT_PROMPT_SYSTEM, REDDIT_PROMPT_USER
 
 # --- 1. 配置类 ---
 class Config:
     # --- 设备配置 ---
-    IEM_DEVICE = "cuda:0"
+    UEM_DEVICE = "cuda:0"
     LLM_DEVICE = "cuda:1" if torch.cuda.is_available() and torch.cuda.device_count() > 1 else "cuda:0"
 
     # --- DeepSeek API 配置 ---
@@ -25,7 +24,7 @@ class Config:
 
     # --- 模型路径 ---
     LLM_PATH = "/root/autodl-tmp/huggingface/hub/models--meta-llama--Meta-Llama-3-8B-Instruct/snapshots/8afb486c1db24fe5011ec46dfbe5b5dccdb575c2"
-    IEM_PATH = "/root/autodl-tmp/huggingface/hub/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09"
+    UEM_PATH = "/root/autodl-tmp/huggingface/hub/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09"
     CKPT_PATH = "/root/autodl-tmp/PPPUE/personalReddit/ckpt/Prefix_LoRA"
     
     # --- 数据文件 ---
@@ -70,7 +69,21 @@ Generated Answer: "{generated_answer}"
 Your verdict:
 """
 
-from _utils.model import load_local_model
+def load_local_model(model_path: str, device: str):
+    '''加载本地模型和分词器，用于评估任务'''
+    print(f"Loading local model from: {model_path} onto {device}...")
+    model = AutoModelForCausalLM.from_pretrained(
+        model_path, 
+        device_map=device,
+        torch_dtype=torch.float16,
+        trust_remote_code=True
+    )
+    tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.padding_side = 'left'
+    print(f"Local model loaded successfully.")
+    return model, tokenizer
 
 def generate_api_response(client: OpenAI, model: str, messages: List[Dict], temperature: float) -> str:
     try:
@@ -143,14 +156,13 @@ def evaluate_single_entry(
         loss_desc_sentence = data.get('loss_description_sentence', '')
         anonymized_text = data.get('anonymized_response', '')
 
-        # 1. UEM现在只编码描述句 (在 UEM_DEVICE 上)
+        # 1. UEM 只编码描述句 (在 UEM_DEVICE 上)
         with autocast(enabled=eval_model.uem.device.type == 'cuda'):
             uem_inputs = eval_model.uem_tokenizer(loss_desc_sentence, return_tensors="pt", padding=True, truncation=True, max_length=128).to(eval_model.uem.device)
             uem_outputs = eval_model.uem(**uem_inputs)
             sentence_representation = uem_outputs.last_hidden_state[:, 0, :]
             clean_prefix = eval_model.projection_layer(sentence_representation)
             
-        # 添加 reshape 操作，与 train.py 保持一致
         clean_prefix = clean_prefix.view(-1, config.PREFIX_LENGTH, shared_llm.config.hidden_size)
         
         # 2. 根据评估模式处理前缀 (裁剪或加噪)
@@ -166,7 +178,7 @@ def evaluate_single_entry(
                 sigma = (2 * config.CLIPPING_NORM) / (config.EPSILON + 1e-9)
                 noise = torch.randn_like(clipped_prefix) * sigma
                 prefix_vector = clipped_prefix + noise
-            else: # Fallback
+            else:
                 prefix_vector = clean_prefix
         
         # 3. 将前缀嵌入移动到 LLM 的设备上
@@ -201,7 +213,7 @@ def evaluate_single_entry(
             assistant_start_embeds
         ], dim=1)
 
-        # 新增：为拼接好的嵌入创建 attention_mask
+        # 为拼接好的嵌入创建 attention_mask
         attention_mask = torch.ones(combined_embeds.shape[:2], dtype=torch.long, device=combined_embeds.device)
 
         # 6. 使用拼接好的嵌入和 attention_mask 进行生成
@@ -227,7 +239,7 @@ def main(config: Config):
     
     # UEM模型只在非BASELINE模式下需要
     if config.EVAL_MODE not in ["BASELINE", "ORIGINAL_TEXT_BASELINE"]:
-        uem_tokenizer = AutoTokenizer.from_pretrained(config.IEM_PATH)
+        uem_tokenizer = AutoTokenizer.from_pretrained(config.UEM_PATH)
         print("--- Loading UEM and LoRA components ---")
         
         # 1. 定义解耦组件的路径
@@ -241,18 +253,16 @@ def main(config: Config):
             return
 
         # 2. 加载基础模型并应用保存的 LoRA 适配器
-        # PeftModel 会自动处理设备放置，与基础模型一致
         print(f"Loading LoRA adapters from: {lora_adapter_path}")
         llm_student = PeftModel.from_pretrained(shared_llm, lora_adapter_path)
-        # 为了推理速度，可以将适配器权重合并到模型中
         llm_student = llm_student.merge_and_unload()
         print("LoRA adapters loaded and merged successfully.")
         
         # 3. 初始化 TrainableEnhancer
         # 教师模型在评估时为 None
-        eval_model = TrainableEnhancer(config.IEM_PATH, uem_tokenizer, None, llm_student, shared_tokenizer)
-        eval_model.uem.to(config.IEM_DEVICE)
-        eval_model.projection_layer.to(config.IEM_DEVICE)
+        eval_model = TrainableEnhancer(config.UEM_PATH, uem_tokenizer, None, llm_student, shared_tokenizer)
+        eval_model.uem.to(config.UEM_DEVICE)
+        eval_model.projection_layer.to(config.UEM_DEVICE)
         
         # 4. 加载 UEM 和投影层的权重
         print(f"Loading UEM and projection weights from: {other_weights_path}")
@@ -283,7 +293,7 @@ def main(config: Config):
             anonymized_response = data.get("anonymized_response")
             loss_desc = data.get("loss_description_sentence")
             
-            # --- 修正: 从 personality.occupation 获取真实标签 ---
+            # --- 从 personality.occupation 获取真实标签 ---
             personality = data.get("personality", {})
             true_label = personality.get("occupation")
             
@@ -356,7 +366,7 @@ if __name__ == "__main__":
         "Input Data": config.INPUT_DATA_FILE,
     }
     if config.EVAL_MODE not in ["BASELINE", "ORIGINAL_TEXT_BASELINE"]:
-        paths_to_check["UEM"] = config.IEM_PATH
+        paths_to_check["UEM"] = config.UEM_PATH
         paths_to_check["UEM Checkpoint"] = config.CKPT_PATH
 
     all_paths_exist = True

@@ -1,18 +1,15 @@
-import warnings
-warnings.filterwarnings("ignore", category=FutureWarning)
-
-import os
-import json
-import torch
-import torch.nn.functional as F
-from tqdm import tqdm
-from torch.utils.data import Dataset, DataLoader
-from torch.optim import AdamW
-from torch.optim.lr_scheduler import CosineAnnealingLR
-from torch.cuda.amp import autocast
-from transformers import AutoModel, AutoTokenizer, XLMRobertaTokenizer
-from peft import LoraConfig, get_peft_model, TaskType  # 添加 PEFT 导入
-from typing import List, Dict, Tuple
+import os # 用于文件和目录操作
+import json # 用于处理 JSON 数据
+import torch # PyTorch 库
+import torch.nn.functional as F # 用于神经网络功能
+from torch.utils.data import Dataset, DataLoader # 数据集和数据加载器
+from torch.optim import AdamW # 优化器
+from torch.optim.lr_scheduler import CosineAnnealingLR # 学习率调度器（余弦退火）
+from torch.cuda.amp import autocast # 自动混合精度
+from tqdm import tqdm # 进度条显示
+from transformers import AutoModel, AutoTokenizer, AutoModelForCausalLM, XLMRobertaTokenizer # 预训练模型和分词器
+from peft import LoraConfig, get_peft_model, TaskType  # LoRA 相关
+from typing import List, Dict, Tuple # 类型提示
 
 # --- CONFIGURATION VARIABLES --- #
 LLM_MODEL_PATH = "/root/autodl-tmp/huggingface/hub/models--meta-llama--Meta-Llama-3-8B-Instruct/snapshots/8afb486c1db24fe5011ec46dfbe5b5dccdb575c2"
@@ -25,20 +22,20 @@ CKPT_DIR = "/root/autodl-tmp/PPPUE/ckpt/prefix_lora"
 # 训练超参数
 LEARNING_RATE_UEM = 1e-5  # UEM 和投影层的学习率
 LEARNING_RATE_LORA = 1e-4  # LoRA 的学习率
-EPOCHS = 100
-BATCH_SIZE = 1
-PREFIX_LENGTH = 5
-UEM_DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
-LLM_DEVICE = "cuda:1" if torch.cuda.is_available() and torch.cuda.device_count() > 1 else UEM_DEVICE
-CLIPPING_NORM = 1.0
-DISTILLATION_TEMP = 1.0
-MAX_GEN_TOKENS = 10
+EPOCHS = 100 # 训练轮数
+BATCH_SIZE = 1 # 批量大小
+PREFIX_LENGTH = 5 # 前缀长度
+UEM_DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu" # UEM 设备
+LLM_DEVICE = "cuda:1" if torch.cuda.is_available() and torch.cuda.device_count() > 1 else UEM_DEVICE # LLM 设备
+CLIPPING_NORM = 1.0 # 梯度裁剪范数
+DISTILLATION_TEMP = 1.0 # 知识蒸馏温度
+MAX_GEN_TOKENS = 10 # 教师模型生成的最大 token 数
 
 # LoRA 配置
-LORA_R = 16  # LoRA rank
-LORA_ALPHA = 32  # LoRA alpha
-LORA_DROPOUT = 0.1  # LoRA dropout
-LORA_TARGET_MODULES = ["q_proj", "k_proj", "v_proj", "o_proj"]  # 目标模块
+LORA_R = 16 # LoRA 秩
+LORA_ALPHA = 32 # LoRA 缩放因子
+LORA_DROPOUT = 0.1 # LoRA dropout 率
+LORA_TARGET_MODULES = ["q_proj", "k_proj", "v_proj", "o_proj"] # 目标模块列表
 
 # ----- Reddit 系统提示词 -----
 REDDIT_PROMPT_SYSTEM = """
@@ -78,8 +75,8 @@ class TrainableEnhancer(torch.nn.Module):
     '''可训练的增强模型,结合 UEM 和独立的教师/学生 LLM'''
     def __init__(self, uem_path: str, uem_tokenizer, llm_teacher, llm_student, llm_tokenizer):
         super().__init__()
-        self.llm_teacher = llm_teacher  # 冻结的教师模型
-        self.llm_student = llm_student  # 带 LoRA 的学生模型
+        self.llm_teacher = llm_teacher
+        self.llm_student = llm_student
         self.llm_tokenizer = llm_tokenizer
         self.uem_tokenizer = uem_tokenizer
         self.uem = AutoModel.from_pretrained(uem_path)
@@ -201,14 +198,14 @@ class TrainableEnhancer(torch.nn.Module):
         logits_student = student_outputs.logits[:, start_pos:end_pos, :]
         
         # 8. 确保数据类型一致，并 clip logits 以防止溢出
-        logits_student = logits_student.to(dtype=torch.float32)  # 强制 float32
-        logits_teacher = logits_teacher.to(device=logits_student.device, dtype=torch.float32)  # 强制一致
+        logits_student = logits_student.to(dtype=torch.float32)
+        logits_teacher = logits_teacher.to(device=logits_student.device, dtype=torch.float32)
         
-        # Clip logits to prevent overflow
+        # 9. 裁剪教师模型和学生模型的 Logits
         logits_student = torch.clamp(logits_student, min=-10.0, max=10.0)
         logits_teacher = torch.clamp(logits_teacher, min=-10.0, max=10.0)
         
-        # 9. 计算 KL 散度损失
+        # 10. 计算 KL 散度损失
         if logits_teacher.shape != logits_student.shape:
             print(f"Warning: Shape mismatch. Teacher: {logits_teacher.shape}, Student: {logits_student.shape}. Skipping batch.")
             return torch.tensor(0.0, device=logits_student.device, requires_grad=True)
@@ -224,7 +221,24 @@ class TrainableEnhancer(torch.nn.Module):
 
         return loss
 
-from _utils.model import load_frozen_llm
+def load_frozen_llm(model_path: str, device: str):
+    """在特定设备上加载冻结的 LLM，用于训练 UEM"""
+    print(f"Loading and freezing reasoning LLM from {model_path} onto {device}...")
+    tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.padding_side = 'left'
+    model = AutoModelForCausalLM.from_pretrained(
+        model_path, 
+        torch_dtype=torch.float16, 
+        device_map=device, 
+        trust_remote_code=True
+    )
+    if hasattr(model, 'lm_head'):
+        model.lm_head = model.lm_head.to(torch.float16)
+    model.eval()
+    print("Reasoning LLM loaded and frozen successfully.")
+    return model, tokenizer
 
 def evaluate(model, data_loader):
     """评估模型"""
@@ -265,7 +279,7 @@ def main():
     print(f"Using UEM_DEVICE: {UEM_DEVICE} and LLM_DEVICE: {LLM_DEVICE}")
     print(f"Checkpoints will be saved to: {CKPT_DIR}")
     
-    # 加载教师模型(冻结)
+    # 加载冻结的教师模型
     llm_teacher, llm_tokenizer = load_frozen_llm(LLM_MODEL_PATH, LLM_DEVICE)
     
     # 加载学生模型并应用 LoRA
@@ -273,7 +287,7 @@ def main():
     print("Loading student model with LoRA...")
     llm_student = AutoModelForCausalLM.from_pretrained(
         LLM_MODEL_PATH,
-        torch_dtype=torch.float32,  # 改为 float32 以提高数值稳定性
+        torch_dtype=torch.float32,
         device_map={"": LLM_DEVICE}
     )
     
@@ -367,7 +381,6 @@ def main():
             total_train_loss += loss.item()
             num_samples_trained += 1
             
-            # 移除 scaler 相关步骤，改为标准反向传播
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), CLIPPING_NORM)
             optimizer.step()
@@ -388,7 +401,7 @@ def main():
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             # 创建一个目录来保存该 epoch 的所有组件
-            epoch_ckpt_dir = os.path.join(CKPT_DIR, f"best_model_epoch_{epoch + 1}")
+            epoch_ckpt_dir = os.path.join(CKPT_DIR, f"best_model")
             os.makedirs(epoch_ckpt_dir, exist_ok=True)
 
             # 1. 保存 LoRA 适配器权重
