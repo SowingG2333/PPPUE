@@ -1,0 +1,82 @@
+_wandb:
+    value:
+        cli_version: 0.22.2
+        e:
+            593nc864w4ge4lbzcy28z908it593zp4:
+                codePath: DB-Bio-new/train.py
+                codePathLocal: DB-Bio-new/train.py
+                cpu_count: 104
+                cpu_count_logical: 208
+                cudaVersion: "13.0"
+                disk:
+                    /:
+                        total: "32212254720"
+                        used: "14224195584"
+                email: 3243856409@qq.com
+                executable: /root/miniconda3/envs/llm/bin/python
+                git:
+                    commit: 86c6b3f3e66ae0ed69c0a75217116a2e386f644d
+                    remote: https://github.com/SowingG2333/PPPUE.git
+                gpu: NVIDIA RTX PRO 6000 Blackwell Server Edition
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Blackwell
+                      cudaCores: 24064
+                      memoryTotal: "102641958912"
+                      name: NVIDIA RTX PRO 6000 Blackwell Server Edition
+                      uuid: GPU-96eead34-20ca-2de0-3a8a-7d9e78574612
+                host: autodl-container-63d6438985-2ec976c8
+                memory:
+                    total: "1081795899392"
+                os: Linux-5.15.0-78-generic-x86_64-with-glibc2.35
+                program: /root/autodl-tmp/PPPUE/DB-Bio-new/train.py
+                python: CPython 3.9.23
+                root: /root/autodl-tmp/PPPUE
+                startedAt: "2025-10-19T06:47:33.219475Z"
+                writerId: 593nc864w4ge4lbzcy28z908it593zp4
+        m: []
+        python_version: 3.9.23
+        t:
+            "1":
+                - 1
+                - 11
+                - 49
+                - 71
+                - 98
+            "2":
+                - 1
+                - 11
+                - 49
+                - 71
+                - 98
+            "3":
+                - 16
+            "4": 3.9.23
+            "5": 0.22.2
+            "6": 4.36.0
+            "12": 0.22.2
+            "13": linux-x86_64
+batch_size:
+    value: 1
+clipping_norm:
+    value: 1
+distillation_temp:
+    value: 1
+epochs:
+    value: 10
+learning_rate_lora:
+    value: 0.0001
+learning_rate_uem:
+    value: 1e-05
+llm_model:
+    value: /root/autodl-tmp/huggingface/hub/models--meta-llama--Meta-Llama-3-8B-Instruct/snapshots/8afb486c1db24fe5011ec46dfbe5b5dccdb575c2
+lora_alpha:
+    value: 32
+lora_dropout:
+    value: 0.1
+lora_r:
+    value: 16
+prefix_length:
+    value: 5
+uem_model:
+    value: /root/autodl-tmp/huggingface/hub/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09

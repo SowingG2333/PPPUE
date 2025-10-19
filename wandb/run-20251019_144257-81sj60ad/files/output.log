@@ -1,0 +1,53 @@
+Using UEM_DEVICE: cuda:0 and LLM_DEVICE: cuda:0
+Checkpoints will be saved to: /root/autodl-tmp/PPPUE/DB-Bio-new/ckpt
+Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+Loading checkpoint shards: 100%|██████████████████████████████████████████████████████████| 4/4 [00:20<00:00,  5.01s/it]
+Loading student model with LoRA...
+Loading checkpoint shards: 100%|██████████████████████████████████████████████████████████| 4/4 [00:07<00:00,  1.89s/it]
+trainable params: 13,631,488 || all params: 8,043,892,736 || trainable%: 0.16946382115456393
+Loaded 1548 samples from /root/autodl-tmp/PPPUE/DB-Bio-new/benchmark/train/train.jsonl
+Loaded 388 samples from /root/autodl-tmp/PPPUE/DB-Bio-new/benchmark/train/val.jsonl
+Dataset loaded: 1548 training samples and 388 validation samples.
+/root/miniconda3/envs/llm/lib/python3.9/site-packages/transformers/utils/generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+
+--- Starting Biography Knowledge Distillation Training with LoRA ---
+UEM Learning Rate: 1e-05
+LoRA Learning Rate: 0.0001
+Training Epoch 1:   0%|                                                                        | 0/1548 [00:00<?, ?it/s]
+Traceback (most recent call last):
+  File "/root/autodl-tmp/PPPUE/DB-Bio-new/train.py", line 475, in <module>
+    main()
+  File "/root/autodl-tmp/PPPUE/DB-Bio-new/train.py", line 409, in main
+    for batch in tqdm(train_loader, desc=f"Training Epoch {epoch + 1}"):
+  File "/root/miniconda3/envs/llm/lib/python3.9/site-packages/tqdm/std.py", line 1181, in __iter__
+    for obj in iterable:
+  File "/root/miniconda3/envs/llm/lib/python3.9/site-packages/torch/utils/data/dataloader.py", line 734, in __next__
+    data = self._next_data()
+  File "/root/miniconda3/envs/llm/lib/python3.9/site-packages/torch/utils/data/dataloader.py", line 790, in _next_data
+    data = self._dataset_fetcher.fetch(index)  # may raise StopIteration
+  File "/root/miniconda3/envs/llm/lib/python3.9/site-packages/torch/utils/data/_utils/fetch.py", line 52, in fetch
+    data = [self.dataset[idx] for idx in possibly_batched_index]
+  File "/root/miniconda3/envs/llm/lib/python3.9/site-packages/torch/utils/data/_utils/fetch.py", line 52, in <listcomp>
+    data = [self.dataset[idx] for idx in possibly_batched_index]
+  File "/root/autodl-tmp/PPPUE/DB-Bio-new/train.py", line 79, in __getitem__
+    "label": item['label_accurate']
+KeyError: 'label_accurate'
+Traceback (most recent call last):
+  File "/root/autodl-tmp/PPPUE/DB-Bio-new/train.py", line 475, in <module>
+    main()
+  File "/root/autodl-tmp/PPPUE/DB-Bio-new/train.py", line 409, in main
+    for batch in tqdm(train_loader, desc=f"Training Epoch {epoch + 1}"):
+  File "/root/miniconda3/envs/llm/lib/python3.9/site-packages/tqdm/std.py", line 1181, in __iter__
+    for obj in iterable:
+  File "/root/miniconda3/envs/llm/lib/python3.9/site-packages/torch/utils/data/dataloader.py", line 734, in __next__
+    data = self._next_data()
+  File "/root/miniconda3/envs/llm/lib/python3.9/site-packages/torch/utils/data/dataloader.py", line 790, in _next_data
+    data = self._dataset_fetcher.fetch(index)  # may raise StopIteration
+  File "/root/miniconda3/envs/llm/lib/python3.9/site-packages/torch/utils/data/_utils/fetch.py", line 52, in fetch
+    data = [self.dataset[idx] for idx in possibly_batched_index]
+  File "/root/miniconda3/envs/llm/lib/python3.9/site-packages/torch/utils/data/_utils/fetch.py", line 52, in <listcomp>
+    data = [self.dataset[idx] for idx in possibly_batched_index]
+  File "/root/autodl-tmp/PPPUE/DB-Bio-new/train.py", line 79, in __getitem__
+    "label": item['label_accurate']
+KeyError: 'label_accurate'
