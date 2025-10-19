@@ -16,9 +16,9 @@ class Config:
     JUDGE_MODEL_NAME = "deepseek-chat"
 
     # 路径
-    INPUT_DATA_FILE = "/root/autodl-tmp/PPPUE/DB-Bio-new/benchmark/test/test_anony_with_loss.jsonl"
-    PREDICTIONS_FILE = "/root/autodl-tmp/PPPUE/DB-Bio-new/results/ouput/pred_BASELINE.jsonl"
-    OUTPUT_DIR = "/root/autodl-tmp/PPPUE/DB-Bio-new/results/eval_results"
+    INPUT_DATA_FILE = "/home/sowingg/coding/LLM/PPPUE/DB-Bio-new/benchmark/test/test_anony_with_loss_relabel.jsonl"
+    PREDICTIONS_FILE = "/home/sowingg/coding/LLM/PPPUE/DB-Bio-new/results/output/pred_DP_eps50.0.jsonl"
+    OUTPUT_DIR = "/home/sowingg/coding/LLM/PPPUE/DB-Bio-new/results/eval_results"
 
     # 其它
     LIMIT: Optional[int] = None
@@ -238,7 +238,7 @@ def main():
     parser.add_argument('--pred', type=str, help="预测结果 JSONL 路径（由生成脚本输出）")
     parser.add_argument('--limit', type=int, help="限制评估条数")
     parser.add_argument('--outdir', type=str, help="评估结果输出目录")
-    parser.add_argument('--workers', type=int, default=10, help="并发线程数（默认 10）")
+    parser.add_argument('--workers', type=int, default=30, help="并发线程数（默认 10）")
     args = parser.parse_args()
 
     config = Config()
@@ -257,8 +257,8 @@ def main():
     in_stem = _safe_stem(config.INPUT_DATA_FILE)
     pred_stem = _safe_stem(config.PREDICTIONS_FILE)
     prefix = f"{pred_stem}__{in_stem}"
-    out_json = os.path.join(config.OUTPUT_DIR, f"{prefix}.judge_eval.json")
-    out_jsonl = os.path.join(config.OUTPUT_DIR, f"{prefix}.judge_details.jsonl")
+    out_json = os.path.join(config.OUTPUT_DIR, f"{prefix}_judge.json")
+    out_jsonl = os.path.join(config.OUTPUT_DIR, f"{prefix}_judge_details.jsonl")
 
     # 读取数据与预测
     dataset = load_jsonl(config.INPUT_DATA_FILE)
