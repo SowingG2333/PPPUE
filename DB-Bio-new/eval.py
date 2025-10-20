@@ -17,8 +17,8 @@ class Config:
 
     # 路径
     INPUT_DATA_FILE = "/home/sowingg/coding/LLM/PPPUE/DB-Bio-new/benchmark/test/test_anony_with_loss_relabel.jsonl"
-    PREDICTIONS_FILE = "/home/sowingg/coding/LLM/PPPUE/DB-Bio-new/results/output/pred_DP_eps50.0.jsonl"
-    OUTPUT_DIR = "/home/sowingg/coding/LLM/PPPUE/DB-Bio-new/results/eval_results"
+    PREDICTIONS_FILE = "/home/sowingg/coding/LLM/PPPUE/DB-Bio-new/results/output/pred_ORIGINAL_TEXT.jsonl"
+    OUTPUT_DIR = "/home/sowingg/coding/LLM/PPPUE/DB-Bio-new/results/eval_results/label_origin"
 
     # 其它
     LIMIT: Optional[int] = None
@@ -202,7 +202,7 @@ def _evaluate_one(p: Dict[str, Any], data_by_index: Dict[int, Dict[str, Any]], c
         idx = p.get("index")
         gen = (p.get("generated_answer") or "").strip()
         rec = data_by_index.get(idx, {})
-        label = rec.get("label_accurate")
+        label = rec.get("label")
         original_text = rec.get("text", "")
         anonymized_text = rec.get("anonymized_text", "")
         loss_desc = rec.get("loss_description_sentence", "")
@@ -238,7 +238,7 @@ def main():
     parser.add_argument('--pred', type=str, help="预测结果 JSONL 路径（由生成脚本输出）")
     parser.add_argument('--limit', type=int, help="限制评估条数")
     parser.add_argument('--outdir', type=str, help="评估结果输出目录")
-    parser.add_argument('--workers', type=int, default=30, help="并发线程数（默认 10）")
+    parser.add_argument('--workers', type=int, default=50, help="并发线程数（默认 10）")
     args = parser.parse_args()
 
     config = Config()
