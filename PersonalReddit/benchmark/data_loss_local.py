@@ -10,28 +10,24 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 from tqdm import tqdm
 
 # --- 配置 ---
-DEFAULT_MODEL_NAME = "meta-llama/Meta-Llama-3-8B-Instruct"
+DEFAULT_MODEL_NAME = "/root/autodl-tmp/huggingface/hub/models--meta-llama--Meta-Llama-3-8B-Instruct/snapshots/8afb486c1db24fe5011ec46dfbe5b5dccdb575c2"
 
 # --- Prompt模板 ---
 PROMPT_LOSS_SYSTEM = """
 You are an expert in analyzing text and extracting relevant information about occupations.
 """
 PROMPT_LOSS_USER = """
-Compare the [Original Text] and [Anonymized Text]. Your goal is to create a very concise note describing only the information that was lost and is useful for guessing the user's occupation.
+Compare the [Original Text] and [Anonymized Text]. Your goal is to create a concise note in key words describing only the information that was lost and is useful for guessing the user's occupation.
 
-Follow these rules:
-
-- Focus on Occupation: Only extract clues about the user's job, skills, education, or work environment.
-
-- Ignore Irrelevant Details: Do not include lost information about hobbies, music, personal relationships, or specific non-work-related events.
-
-- Handle "No Clues": If no occupation-relevant information was lost, simply write "No occupation-relevant information was lost."
+If no occupation-relevant information was lost, simply write "No occupation-relevant information was lost."
 
 [Original Text]:
 {original_text}
 
 [Anonymized Text]:
 {anonymized_text}
+
+Now, provide the key words and do not add any explanations or additional commentary.
 
 Your Output:
 """
@@ -183,7 +179,6 @@ def process_record(data: Dict[str, Any], pipe, tokenizer) -> Dict[str, Any]:
 # --- 主流程 ---
 def main():
     parser = argparse.ArgumentParser(description="Generate information loss descriptions using a local Hugging Face LLM.")
-    # 移除了 --max_workers
     parser.add_argument("--input_file", type=str, required=True, help="Path to the input JSONL file with anonymized data.")
     parser.add_argument("--output_file", type=str, required=True, help="Path to the output JSONL file where results will be saved.")
     
