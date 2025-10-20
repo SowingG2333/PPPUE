@@ -27,7 +27,7 @@ class Config:
 
     # 生成设置
     EVAL_MODE = "DP"  # Options: BASELINE, STANDARD, CLIPPING_ONLY, DP, ORIGINAL_TEXT
-    EPSILON = 10.0
+    EPSILON = 1.0
     CLIPPING_NORM = 1.0
     PREFIX_LENGTH = 5
     LIMIT: Optional[int] = None
