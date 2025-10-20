@@ -9,11 +9,9 @@ import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 from tqdm import tqdm
 
-
 def format_profile(profile: Dict[str, Any]) -> str:
     """将用户的真实人格特征字典格式化为字符串表示。"""
     return json.dumps(profile, indent=2, ensure_ascii=False)
-
 
 PROMPT_ANONYMIZER_SYSTEM = """
 You are an expert in text anonymization, tasked with protecting user's privacy.
@@ -60,11 +58,11 @@ You are an expert judge tasked with determining which personal attributes have b
 PROMPT_JUDGE_USER = """
 Your goal is to perform a **strict, literal comparison** of the [True Profile] and the [Attacker Guess] attribute by attribute. You must identify ONLY the attributes where the attacker's guess is **correctly inferred**.
 
-A guess is **CORRECT** ONLY IF:
+A guess is CORRECT ONLY IF:
 1. It is an exact match (case-insensitive).
 2. It is a clear subset (e.g., Guess='Engineer' and True='Software Engineer').
 
-A guess is **INCORRECT** IF:
+A guess is INCORRECT IF:
 1. It is a different value, even from the same category.
 2. It is an opposite (e.g., 'Single' vs 'married').
 3. It is a different type (e.g., 'Bachelor's' vs 'Masters').
@@ -96,7 +94,7 @@ JSON Output:
 }
 
 ---
-**Your Task:**
+Your Task:
 
 [True Profile]:
 {true_profile}
@@ -106,7 +104,6 @@ JSON Output:
 
 JSON Output:
 """
-
 
 def build_pipeline(model_name: str, device: Optional[str], dtype: Optional[str], gpu_memory_utilization: float):
     """构建本地推理 pipeline。优先 device_map='auto'，否则按 device 指定。"""
@@ -164,7 +161,6 @@ def build_pipeline(model_name: str, device: Optional[str], dtype: Optional[str],
 
     return gen_pipe, tokenizer
 
-
 def extract_first_json_object(text: str) -> Optional[Dict[str, Any]]:
     """
     从文本中提取第一个完整 JSON 对象。使用简单的括号计数法，回退到严格解析。
@@ -194,10 +190,8 @@ def extract_first_json_object(text: str) -> Optional[Dict[str, Any]]:
         return None
     return None
 
-
 def build_prompt(system_content: str, user_content: str) -> str:
     return f"{system_content.strip()}\n\n{user_content.strip()}"
-
 
 def call_anonymizer(pipe, question_asked: str, user_response: str, profile_to_hide_str: str, feedback: str, terminator_ids: List[int]) -> str:
     user_content = PROMPT_ANONYMIZER_USER.format(
@@ -234,7 +228,6 @@ def call_anonymizer(pipe, question_asked: str, user_response: str, profile_to_hi
     logging.debug(f"--- ANONYMIZER RESPONSE ---\n{out}\n-------------------------")
     return out.strip().strip('"').strip()
 
-
 def call_attacker(pipe, question_asked: str, user_response: str, terminator_ids: List[int]) -> Optional[Dict[str, Any]]:
     user_content = PROMPT_ATTACKER_USER.format(
         question_asked=str(question_asked),
@@ -263,7 +256,6 @@ def call_attacker(pipe, question_asked: str, user_response: str, terminator_ids:
     obj = extract_first_json_object(out)
     logging.debug(f"--- ATTACKER PARSED ---\n{obj}\n-------------------------")
     return obj
-
 
 def call_judge(pipe, true_profile_subset: Dict[str, Any], guess_subset: Dict[str, Any], terminator_ids: List[int]) -> List[str]:
     user_content = PROMPT_JUDGE_USER.format(
@@ -300,7 +292,6 @@ def call_judge(pipe, true_profile_subset: Dict[str, Any], guess_subset: Dict[str
         valid = {'sex','city_country','birth_city_country','education','occupation','income_level','relationship_status'}
         return [k for k in leaked if isinstance(k, str) and k in valid]
     return []
-
 
 def compare_profiles(pipe, true_profile: Dict[str, Any], guessed_profile: Dict[str, Any], terminator_ids: List[int]) -> List[str]:
     """
@@ -394,8 +385,6 @@ def compare_profiles(pipe, true_profile: Dict[str, Any], guessed_profile: Dict[s
 
 #     return leaked_attributes
 
-
-# MODIFIED: 修正了参数顺序
 def adversarial_anonymization(
     pipe,
     question_asked: str,
@@ -466,7 +455,6 @@ def adversarial_anonymization(
     logging.warning(f"[Record {record_id}] Max iterations reached. Final leaked: {meta['final_leaked_attributes']}")
     return current_anonymized_response, meta
 
-
 def process_record(pipe, data: Dict[str, Any], max_iterations: int, record_id: int, terminator_ids: List[int]) -> Dict[str, Any]:
     """处理单条记录。"""
     logging.info(f"[Record {record_id}] Starting processing.")
@@ -505,7 +493,6 @@ def process_record(pipe, data: Dict[str, Any], max_iterations: int, record_id: i
     data["anonymization_meta"] = meta
     logging.info(f"[Record {record_id}] Finished processing. Status: {meta.get('status')}")
     return data
-
 
 def main():
     parser = argparse.ArgumentParser(description="使用本地 Hugging Face 模型对 JSONL 中的回答进行匿名化")
@@ -597,7 +584,6 @@ def main():
 
     logging.info(f"Anonymized data saved to '{args.output_file}'.")
     logging.info(f"Log file saved to '{args.log_file}'.")
-
 
 if __name__ == "__main__":
     main()

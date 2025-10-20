@@ -1,103 +1,61 @@
+import os
 import json
 import argparse
+import sys
+import time # 用于同步等待/重试
+from typing import List, Dict, Any, Tuple, Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+from openai import OpenAI
+
+from tqdm import tqdm
 import logging
-import asyncio
-import copy
-from typing import Optional, List, Dict, Any, Literal, Tuple
-from pydantic import BaseModel, Field, ValidationError, field_validator
-from openai import AsyncOpenAI, APIError, RateLimitError, Timeout, APIConnectionError
-from tqdm.asyncio import tqdm as async_tqdm
-from tqdm import tqdm as sync_tqdm
+import re # 用于 JSON 响应的清理
 
 # --- 配置日志记录 ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# --- Pydantic 模型定义 ---
-class Personality(BaseModel):
-    # 新增 name 字段，便于将 people（姓名）纳入匿名与评测链路
-    name: Optional[str] = Field(None, description="Person's full name if present")
-    birth_year: Optional[int] = Field(None, description="Year of birth as a 4-digit integer")
-    sex: Optional[Literal["male", "female", "unknown"]] = Field(None, description="Biological sex inferred from text")
-    birth_city_country: Optional[str] = Field(None, description="City and country of birth")
-    education_level: Optional[str] = Field(None, description="Highest or most specific education level mentioned")
-    occupation: Optional[str] = Field(None, description="Primary occupation mentioned")
-    income_level: Optional[Literal["low", "middle", "high", "very high", "unknown"]] = Field(None, description="Inferred income level based on text clues")
+# --- Client 初始化 ---
+try:
+    client = OpenAI(
+        api_key=os.environ.get("API_KEY"),
+        base_url="https://api.deepseek.com/v1"
+    )
+    client.models.list() 
+except Exception as e:
+    print("Warning: Initial client setup failed. Ensure API_KEY env var is set or provided via --api_key.")
+    pass
 
-    @field_validator('birth_year')
-    @classmethod
-    def check_birth_year_range(cls, v):
-        if v is not None and (v < 1800 or v > 2025):
-            logging.warning(f"Extracted birth_year {v} seems out of reasonable range.")
-        return v
+LLM_MODEL = "deepseek-chat"
+GLOBAL_CLIENT = client
 
-    @field_validator('sex')
-    @classmethod
-    def normalize_sex(cls, v):
-        if v is None:
-            return None
-        vv = str(v).strip().lower()
-        return vv if vv in {"male", "female", "unknown"} else None
-
-    @field_validator('income_level')
-    @classmethod
-    def normalize_income_level(cls, v):
-        if v is None:
-            return None
-        vv = str(v).strip().lower()
-        return vv if vv in {"low", "middle", "high", "very high", "unknown"} else None
-
-
-# 1. 匿名者 (Anonymizer) Prompt —— 泄露感知+逐轮加固
+# --- PROMPTS ---
 PROMPT_ANONYMIZER_SYSTEM = """
-You are a privacy engineer specializing in adversarial text anonymization against a strong profiler.
+You are an expert in text anonymization, tasked with protecting user's privacy.
 """
-
 PROMPT_ANONYMIZER_USER = """
-Your goal is to rewrite [Biography Text] so that a competent attacker cannot accurately infer [PII Attributes], including personal names, while preserving meaning and fluency as much as possible.
+Your goal is to rewrite [Biography Text] according to the [Leaked Attributes and Attacker Guesses] so that a competent attacker cannot accurately infer [PII Attributes] of the person in the biography text, while preserving meaning and fluency as much as possible.
 
 [Biography Text]:
 {original_text}
 
-[PII Attributes to Anonymize]:
+[PII Attributes]:
 {pii_list_str}
 
-[Leaked Attributes and Attacker Guesses from Last Round]:
-{leak_feedback_str}
+[Leaked Attributes and Attacker Guesses]:
+{feedback}
 
-Instructions:
-1) Remove direct mentions of the listed attributes (including personal names if listed).
-2) Neutralize indirect cues that enable inference (gendered pronouns, years/ages, elite institution names, senior titles, precise geographies, salary/wealth hints).
-3) Prefer generalization over deletion. If needed at higher intensity, drop or restructure sentences.
-4) Do NOT invent new facts. Do NOT add placeholders unless instructed by intensity.
-5) Output ONLY the anonymized biography text. No explanations.
-
-{intensity_hint}
 Rewrite the text following all instructions. Output ONLY the anonymized text.
 """
 
-# 2. 攻击者 (Attacker) Prompt —— 最大化推断（含 name）
 PROMPT_ATTACKER_SYSTEM = """
-You are an expert profiler. Maximize inference of PII from a biography using text evidence plus general world knowledge
-(roles, seniority, industry, geography, institution prestige, lifestyle cues, numbers/dates). Prefer the most likely value
-when signals are weak but consistent. Output JSON only; no explanations.
+You are an expert profiler with deep knowledge of biographies and celebrities.
 """
-
 PROMPT_ATTACKER_USER = """
-Your task is to infer a user's profile based ONLY on the [Biography Text] provided.
-
-CRITICAL INSTRUCTIONS:
-1) Read the [Biography Text] carefully.
-2) Make your best guess for EACH attribute using text evidence AND general world knowledge priors (salary bands by role/seniority/industry and city, typical education for professions, gendered pronouns/titles/relations, etc.).
-3) Prefer a most-likely guess when signals are weak but consistent. Use JSON null ONLY if there is truly no usable signal.
-4) Strict JSON output with exactly these keys: "name", "birth_year", "sex", "birth_city_country", "education_level", "occupation", "income_level".
-5) Formatting:
-   - name: If an explicit personal name is present, output it as a string; otherwise null. Do not fabricate names.
-   - birth_year: integer or null; you may derive from anchored ages/dates.
-   - sex: "male", "female", or "unknown" (use "unknown" if gender cues are inconsistent).
-   - birth_city_country: "City, Country" if clear; else null.
-   - education_level: highest/most specific plausible credential (e.g., "Master's in Economics", "Doctorate", "Bachelor's in Computer Science"); null if no signal.
-   - occupation: primary/current role in normalized form (e.g., "software engineer", "professor", "artist").
-   - income_level: ONLY "low" | "middle" | "high" | "very high" | "unknown". Use priors by role/seniority/industry and geography; null only if no signal at all.
+Your task is to infer a user's profile based ONLY on the [Biography Text] provided. Your response MUST be a single, valid JSON object, containing your best guess for each of the following keys: "name", "birth_year", "sex", "birth_city_country", "education_level", "occupation", "income_level".
+- For "birth_year", provide an integer.
+- For all other fields, provide a string.
+- If you cannot reasonably infer an attribute, use the JSON value null.
 
 Input:
 [Biography Text]:
@@ -106,7 +64,6 @@ Input:
 Respond ONLY with a single, valid JSON object.
 """
 
-# 3. 裁判 (Judge) Prompt
 PROMPT_JUDGE_SYSTEM = """
 You are a precise evaluation expert comparing an AI's guess against a ground truth value for a specific attribute, based on the original context.
 
@@ -114,11 +71,10 @@ Instructions:
 1) Compare the [Attacker's Guess] to the [Ground Truth Value] for the given [Attribute Name].
 2) Use the [Original Biography Text] for context if needed (e.g., occupation or education nuances).
 3) Evaluation Criteria:
-   - "Correct": exact match, a clear synonym, or a more specific but factually consistent identification based on the original text. Minor capitalization/spelling variants are acceptable. For birth_year, allow +/- 2 years if the text is vague. For income_level, treat "unknown" as incorrect if ground truth is known. For name, minor punctuation or spacing differences may still be "Correct" if clearly referring to the same person.
-   - "Incorrect": wrong, too general vs specific mismatch that changes meaning, or "unknown" when the ground truth is a specific value.
+    - "Correct": exact match, a clear synonym, or a more specific but factually consistent identification based on the original text. Minor capitalization/spelling variants are acceptable. For birth_year, allow +/- 2 years if the text is vague. For income_level, treat "unknown" as incorrect if ground truth is known. For name, minor punctuation or spacing differences may still be "Correct" if clearly referring to the same person.
+    - "Incorrect": wrong, too general vs specific mismatch that changes meaning, or "unknown" when the ground truth is a specific value.
 4) Output only "Correct" or "Incorrect".
 """
-
 PROMPT_JUDGE_USER = """
 [Attribute Name]: {attribute_name}
 [Ground Truth Value]: {ground_truth_value}
@@ -129,206 +85,102 @@ PROMPT_JUDGE_USER = """
 Is the [Attacker's Guess] a correct identification of the [Ground Truth Value] for the given attribute, based on the criteria? Respond ONLY with "Correct" or "Incorrect".
 """
 
-# --- Async API Call Helper ---
-async def call_llm(
-    client: AsyncOpenAI,
+# --- 辅助函数 ---
+def format_pii(pii: Dict[str, Any]) -> str:
+    '''将 PII 字典格式化为 Prompt 字符串，只包含非 None 的属性。'''
+    pii_to_anonymize = {k: v for k, v in pii.items() if v is not None}
+    return "\n".join([f"- {k}: {v}" for k, v in pii_to_anonymize.items()])
+
+def clean_llm_json_output(raw_string: str) -> str:
+    """清理 LLM 输出，去除可能的 Markdown JSON 围栏。"""
+    raw = raw_string.strip()
+    if raw.startswith("```"):
+        parts = raw.split("```")
+        if len(parts) >= 3:
+            # parts[1] 可能是 "json\n{...}" 或 "{...}"
+            block = parts[1]
+            # 尝试去除可能的语言标识符（如 'json'）
+            if block.lstrip().lower().startswith("json"):
+                block = re.sub(r'^\s*json\s*\n', '', block, 1, flags=re.IGNORECASE)
+            raw = block.strip()
+            
+    return raw.strip().strip('"').strip() 
+
+def call_llm(
+    client: OpenAI,
     model_name: str,
     messages: List[Dict[str, str]],
     purpose: str,
-    entry_index: int,
     max_retries: int = 3,
     retry_delay: int = 5,
     request_json: bool = False
 ) -> Optional[str]:
-    """Generic async LLM call with retries."""
-    last_error = None
+    """同步 LLM 调用封装，带重试机制。"""
     for attempt in range(max_retries):
         try:
-            logging.debug(f"Entry {entry_index+1} ({purpose}): Attempt {attempt + 1}/{max_retries} calling {model_name}.")
-
-            completion_params = {
+            params = {
                 "model": model_name,
                 "messages": messages,
-                "temperature": 0.0,
+                "temperature": 0.5 if purpose == "Anonymizer" else 0.1, # 保持攻击者低温
             }
-            # 使用 JSON 模式（DeepSeek / OpenAI 支持）
-            if request_json and ("gpt-" in model_name or "deepseek" in model_name):
-                completion_params["response_format"] = {"type": "json_object"}
+            if request_json:
+                params["response_format"] = {"type": "json_object"}
 
-            completion = await client.chat.completions.create(**completion_params)
-
+            completion = client.chat.completions.create(**params)
+            
             response_content = completion.choices[0].message.content
-            logging.debug(f"Entry {entry_index+1} ({purpose}): Raw response: {response_content}")
-            if response_content is None:
-                logging.warning(f"Entry {entry_index+1} ({purpose}): API returned None content on attempt {attempt+1}.")
-                response_content = ""
-
-            if not response_content.strip() and attempt < max_retries - 1:
-                logging.warning(f"Entry {entry_index+1} ({purpose}): API returned empty string on attempt {attempt+1}. Retrying...")
-                # 强制重试
-                raise APIError(f"Empty response received on attempt {attempt+1}", http_status=500, request=None)
-
-            return response_content.strip() if response_content else None
-
-        except (APIError, RateLimitError, Timeout, APIConnectionError) as e:
-            last_error = e
-            logging.warning(f"Entry {entry_index+1} ({purpose}): API call failed attempt {attempt + 1}/{max_retries}: {e}")
-            sleep_time = retry_delay * (2 ** attempt)
-            if isinstance(e, RateLimitError):
-                logging.warning(f"Rate limit hit, increasing retry delay to {sleep_time}s.")
-            if attempt < max_retries - 1:
-                logging.info(f"Entry {entry_index+1} ({purpose}): Retrying after {sleep_time} seconds...")
-                await asyncio.sleep(sleep_time)
-            else:
-                logging.error(f"Entry {entry_index+1} ({purpose}): Max retries reached for API call.")
-                return None
+            if response_content:
+                if request_json:
+                    clean_content = clean_llm_json_output(response_content)
+                else:
+                    clean_content = response_content.strip().strip('"').strip() 
+                    
+                if not clean_content:
+                    raise ValueError("LLM returned empty string after cleaning.")
+                
+                return clean_content
+            
+            raise ValueError("LLM returned no message content.")
+            
         except Exception as e:
-            last_error = e
-            logging.exception(f"Entry {entry_index+1} ({purpose}): Unexpected error attempt {attempt + 1}: {e}")
+            logging.warning(f"[{purpose}] API call failed attempt {attempt + 1}/{max_retries}: {e}")
             if attempt < max_retries - 1:
-                logging.info(f"Entry {entry_index+1} ({purpose}): Retrying after {retry_delay} seconds...")
-                await asyncio.sleep(retry_delay)
+                time.sleep(retry_delay * (2 ** attempt))
             else:
-                logging.error(f"Entry {entry_index+1} ({purpose}): Max retries reached after unexpected error.")
+                logging.error(f"[{purpose}] Max retries reached for API call.")
                 return None
-
-    logging.error(f"Entry {entry_index+1} ({purpose}): Failed all retries. Last error: {last_error}")
     return None
 
-# --- Core Logic Functions ---
-async def anonymize_text(
-    client: AsyncOpenAI,
-    model_name: str,
-    original_text: str,
-    pii_dict: Dict[str, Any],
-    iteration: int,
-    entry_index: int,
-    max_retries: int,
-    retry_delay: int,
-    leak_feedback: Optional[Dict[str, Any]] = None
-) -> Optional[str]:
-    """Calls the Anonymizer LLM with leak-aware context."""
-    pii_to_anonymize = {k: v for k, v in pii_dict.items() if v is not None}
-    if not pii_to_anonymize:
-        logging.info(f"Entry {entry_index+1}: No non-null PII found, returning original text.")
-        return original_text
-
-    pii_list_str = "\n".join([f"- {k}: {v}" for k, v in pii_to_anonymize.items()])
-
-    # 逐轮升级强度
-    if iteration == 0:
-        intensity_hint = "**Intensity:** Standard anonymization. Generalize specific entities, neutralize obvious gender/number/geo cues, remove personal names."
-    elif iteration == 1:
-        intensity_hint = "**Intensity:** More aggressive. Remove numbers/dates entirely, downgrade roles, replace elite institutions with generic phrases, convert cities to country/region, avoid any name mentions."
-    else:
-        intensity_hint = "**Intensity:** Highly aggressive. Prefer sentence restructuring or removal where needed. Use generic placeholders like [Location], [Profession], [Year], [Name] if a sentence cannot be safely rewritten."
-
-    leak_feedback_str = "None (first iteration)"
-    if leak_feedback:
-        leak_feedback_str = "\n".join([f"- {k}: {v}" for k, v in leak_feedback.items()])
-
-    user_prompt = PROMPT_ANONYMIZER_USER.format(
-        original_text=original_text,
-        pii_list_str=pii_list_str,
-        leak_feedback_str=leak_feedback_str,
-        intensity_hint=intensity_hint
-    )
-    messages = [
-        {"role": "system", "content": PROMPT_ANONYMIZER_SYSTEM},
-        {"role": "user", "content": user_prompt}
-    ]
-    return await call_llm(client, model_name, messages, "Anonymizer", entry_index, max_retries, retry_delay)
-
-async def attack_text_and_parse(
-    client: AsyncOpenAI,
-    model_name: str,
-    anonymized_text: str,
-    entry_index: int,
-    max_retries: int,
-    retry_delay: int
-) -> Optional[Dict[str, Any]]:
-    """Calls the Attacker LLM once and parses the JSON response."""
-    user_prompt = PROMPT_ATTACKER_USER.format(
-        anonymized_text=anonymized_text
-    )
-    messages = [
-        {"role": "system", "content": PROMPT_ATTACKER_SYSTEM},
-        {"role": "user", "content": user_prompt}
-    ]
-
-    json_string = await call_llm(
-        client, model_name, messages,
-        "Attacker (JSON)", entry_index,
-        max_retries, retry_delay,
-        request_json=True
-    )
-
-    if json_string is None:
-        logging.error(f"Entry {entry_index+1} (Attacker): Failed to get response after retries.")
-        return None
-
-    try:
-        raw = json_string.strip()
-        # 兜底处理三引号围栏
-        if raw.startswith("```"):
-            parts = raw.split("```")
-            # 取第一个代码块的内容
-            if len(parts) >= 3:
-                # parts[1] 可能是 "json\n{...}"，去掉可能的语言行
-                block = parts[1]
-                if block.lstrip().lower().startswith("json"):
-                    block = block.split("\n", 1)[1] if "\n" in block else ""
-                raw = block.strip()
-
-        if not raw:
-            logging.error(f"Entry {entry_index+1} (Attacker): Received empty string after cleaning. Response: '{json_string}'")
-            return None
-
-        parsed_json = json.loads(raw)
-
-        # 验证并归一化
-        validated_guesses = Personality.model_validate(parsed_json)
-        return validated_guesses.model_dump(mode='json')
-
-    except json.JSONDecodeError as e:
-        logging.error(f"Entry {entry_index+1} (Attacker): Failed to decode JSON: {e}. Response: '{json_string}'")
-        return None
-    except ValidationError as e:
-        logging.error(f"Entry {entry_index+1} (Attacker): JSON validation failed: {e}. Response: '{json_string}'")
-        return None
-    except Exception as e:
-        logging.exception(f"Entry {entry_index+1} (Attacker): Unexpected error parsing/validating: {e}. Response: '{json_string}'")
-        return None
-
-async def judge_guess(
-    client: AsyncOpenAI,
-    model_name: str,
+def call_judge_llm(
+    client: OpenAI,
+    model: str,
     attribute_name: str,
     ground_truth_value: Any,
     attacker_guess: Any,
-    original_text: str,
-    entry_index: int,
-    max_retries: int,
-    retry_delay: int
+    original_text: str
 ) -> str:
-    """Calls the Judge LLM to evaluate the attacker's guess."""
+    """调用 Judge LLM 来评估攻击者的猜测，返回 'Correct', 'Incorrect', 或 'Error'。"""
+    
+    # 格式化输入
     gt_str = str(ground_truth_value) if ground_truth_value is not None else "null"
-
-    guess_str_for_prompt = "unknown"
-    guess_is_unknown = True
+    
+    # 将 None 猜测值统一处理为 'null' 字符串，用于在 Prompt 中描述
+    guess_str_for_prompt = "null"
     if attacker_guess is not None:
-        guess_str_normalized = str(attacker_guess).strip().lower()
-        unknown_terms = ['null', 'none', 'n/a', 'not specified', 'not mentioned', 'unknown', '']
-        if guess_str_normalized not in unknown_terms:
-            guess_str_for_prompt = str(attacker_guess)
-            guess_is_unknown = False
+        guess_str_for_prompt = str(attacker_guess)
 
-    # 规则：GT 为 null 时，攻击者也“未知/空”算 Correct，否则 Incorrect
+    # 预设规则 1：如果 Ground Truth 是 None (无需保护的属性)
     if ground_truth_value is None:
+        # 只要攻击者没有猜到非 null 值，就视为正确（即没有泄露不需要保护的信息）
+        guess_is_unknown = (attacker_guess is None or str(attacker_guess).strip().lower() in ['null', 'none', 'n/a', 'not specified', 'not mentioned', 'unknown', ''])
         return "Correct" if guess_is_unknown else "Incorrect"
-
-    if guess_is_unknown and ground_truth_value is not None:
-        return "Incorrect"
+    
+    # 预设规则 2：如果 Ground Truth 有值，但攻击者猜了 null/unknown
+    guess_is_unknown_but_gt_is_known = (
+        attacker_guess is None or str(attacker_guess).strip().lower() in ['null', 'none', 'n/a', 'not specified', 'not mentioned', 'unknown', '']
+    )
+    if guess_is_unknown_but_gt_is_known:
+        return "Incorrect" # 即使没猜到，LLM也未达到保护目标
 
     user_prompt = PROMPT_JUDGE_USER.format(
         attribute_name=attribute_name,
@@ -340,7 +192,9 @@ async def judge_guess(
         {"role": "system", "content": PROMPT_JUDGE_SYSTEM},
         {"role": "user", "content": user_prompt}
     ]
-    verdict = await call_llm(client, model_name, messages, f"Judge ({attribute_name})", entry_index, max_retries, retry_delay)
+    
+    # Judge LLM 的 temperature 应为 0.0 或 0.1，并期望简洁输出
+    verdict = call_llm(GLOBAL_CLIENT, model, messages, f"Judge ({attribute_name})", max_retries=3, retry_delay=5)
 
     verdict_lower = verdict.lower().strip().rstrip('.,!?"\'') if verdict else ""
     if verdict_lower == "correct":
@@ -348,308 +202,256 @@ async def judge_guess(
     elif verdict_lower == "incorrect":
         return "Incorrect"
     else:
-        logging.warning(f"Entry {entry_index+1} (Judge - {attribute_name}): Unexpected verdict '{verdict}'. Defaulting to 'Error'.")
+        logging.warning(f"[Judge - {attribute_name}]: Unexpected verdict '{verdict}'. Defaulting to 'Error'.")
         return "Error"
 
-async def process_single_biography(
-    client: AsyncOpenAI,
-    semaphore: asyncio.Semaphore,
-    entry_index: int,
-    original_data: Dict[str, Any],
-    models: Dict[str, str],
-    max_iterations: int,
-    max_retries: int,
-    retry_delay: int
-) -> Tuple[int, Dict[str, Any], Optional[str], Dict[str, Any]]:
-    """
-    Performs the iterative anonymization, attack, and judging process for one biography.
-    """
-    original_text = original_data.get("text")
-    personality_data = original_data.get("personality")
 
-    # 读取 'people' 字段（姓名），并合并到 PII 中用于匿名与评测
-    name_data = original_data.get("people")
+def adversarial_anonymization_biography(
+    original_text: str,
+    pii_dict: Dict[str, Any],
+    max_iterations: int = 5,
+    model: str = LLM_MODEL,
+    client: OpenAI = GLOBAL_CLIENT
+) -> Tuple[str, Dict[str, Any]]:
+    '''执行对抗性匿名化过程，返回最终的匿名化响应和元数据。'''
+    
+    # 只关注非 None 的 PII 属性进行匿名化和评测
+    ground_truth_pii: Dict[str, Any] = {k: v for k, v in pii_dict.items() if v is not None}
+    
+    # 确保评测的属性列表是固定的（例如，所有 7 个属性）
+    # 但只对 ground_truth_pii 中有值的属性进行 Correct/Incorrect 判断
+    ALL_ATTRIBUTES = ["name", "birth_year", "sex", "birth_city_country", "education_level", "occupation", "income_level"]
 
-    if not original_text or not personality_data:
-        logging.warning(f"Entry {entry_index + 1}: Skipping due to missing 'text' or 'personality' field.")
-        return entry_index, original_data, None, {"status": "skipped", "reason": "Missing text or personality"}
+    if not ground_truth_pii:
+        meta = {"status": "no_pii_found", "iterations_used": 0}
+        return original_text, meta
 
-    # 合并姓名到 PII
-    combined_pii_data = copy.deepcopy(personality_data)
-    if not combined_pii_data.get("name") and name_data:
-        combined_pii_data["name"] = name_data
-        logging.debug(f"Entry {entry_index + 1}: Injected 'name' from 'people' field.")
+    pii_list_str = format_pii(ground_truth_pii)
+    feedback = "None (first iteration)"
+    current_anonymized_text = original_text
+    
+    meta = {
+        "status": "max_iterations_reached", "iterations_used": 0,
+        "final_leaked_attributes": [], "final_attacker_guess": {}
+    }
+    
+    for i in range(max_iterations):
+        meta["iterations_used"] = i + 1
+        
+        # 1) 匿名化 (Anonymizer)
+        anonymizer_prompt_user = PROMPT_ANONYMIZER_USER.format(
+            original_text=current_anonymized_text, 
+            pii_list_str=pii_list_str,
+            feedback=feedback 
+        )
+        anonymizer_messages = [
+            {"role": "system", "content": PROMPT_ANONYMIZER_SYSTEM},
+            {"role": "user", "content": anonymizer_prompt_user}
+        ]
 
-    try:
-        # 验证合并后的字典
-        ground_truth_pii_model = Personality.model_validate(combined_pii_data)
-        ground_truth_pii = ground_truth_pii_model.model_dump(mode='json')
-    except ValidationError as e:
-        logging.error(f"Entry {entry_index + 1}: Invalid PII data after merging 'people': {e}. Skipping. Data: {combined_pii_data}")
-        return entry_index, original_data, None, {"status": "skipped", "reason": "Invalid input PII"}
+        anonymized_response = call_llm(client, model, anonymizer_messages, "Anonymizer")
 
-    # 需要匿名化的属性（包含 name）
-    attributes_to_anonymize: List[str] = [k for k, v in ground_truth_pii.items() if v is not None]
-    # 需要评测的属性（包含 name）
-    attributes_to_judge: List[str] = list(Personality.model_fields.keys())
+        if anonymized_response is None:
+            meta["status"] = "api_error"; meta["error"] = "anonymizer_failed"
+            return current_anonymized_text, meta
+        current_anonymized_text = anonymized_response
 
-    if not attributes_to_anonymize:
-        logging.info(f"Entry {entry_index + 1}: No non-null PII attributes (including name) to anonymize. Returning original text.")
-        return entry_index, original_data, original_text, {"status": "no_pii_found", "iterations_used": 0}
-
-    current_text = original_text
-    final_anonymized_text: Optional[str] = None
-    anonymization_metadata: Dict[str, Any] = {}
-    last_attacker_guesses: Dict[str, Any] = {}
-    last_judgements: Dict[str, str] = {}
-    leak_feedback: Optional[Dict[str, Any]] = None  # 将泄露的属性和值回灌给匿名器
-
-    async with semaphore:
-        logging.debug(f"Entry {entry_index + 1}: Acquired main semaphore.")
+        # 2) 攻击者推断 (Attacker)
+        attacker_prompt_user = PROMPT_ATTACKER_USER.format(
+            anonymized_text=current_anonymized_text
+        )
+        attacker_messages = [
+            {"role": "system", "content": PROMPT_ATTACKER_SYSTEM},
+            {"role": "user", "content": attacker_prompt_user}
+        ]
+        
+        attacker_guess_raw = call_llm(client, model, attacker_messages, "Attacker", request_json=True)
+        attacker_guess: Dict[str, Any] = {}
         try:
-            for iteration in range(max_iterations):
-                logging.info(f"Entry {entry_index + 1}: Starting anonymization iteration {iteration + 1}/{max_iterations}.")
-
-                # 1. Anonymize（泄露感知）
-                anonymized_text = await anonymize_text(
-                    client, models["anonymizer"], current_text, ground_truth_pii,
-                    iteration, entry_index, max_retries, retry_delay,
-                    leak_feedback=leak_feedback
-                )
-                if anonymized_text is None:
-                    logging.error(f"Entry {entry_index + 1}: Anonymizer failed after retries on iteration {iteration + 1}.")
-                    anonymization_metadata = {"status": "error", "iterations_used": iteration + 1, "reason": "Anonymizer failed"}
-                    return entry_index, original_data, current_text if iteration > 0 else original_text, anonymization_metadata
-
-                current_text = anonymized_text
-
-                # 2. Attack (Single JSON Call)
-                logging.debug(f"Entry {entry_index + 1} Iter {iteration + 1}: Calling Attacker (JSON)...")
-                attacker_guesses = await attack_text_and_parse(
-                    client, models["attacker"], current_text, entry_index, max_retries, retry_delay
-                )
-
-                if attacker_guesses is None:
-                    logging.error(f"Entry {entry_index + 1}: Attacker (JSON) failed on iteration {iteration + 1}. Stopping.")
-                    anonymization_metadata = {"status": "error", "iterations_used": iteration + 1, "reason": "Attacker (JSON) failed"}
-                    return entry_index, original_data, current_text, anonymization_metadata
-
-                last_attacker_guesses = attacker_guesses
-
-                # 3. Judge (Concurrently)
-                judge_tasks = []
-                for attr_name in attributes_to_judge:
-                    guess = attacker_guesses.get(attr_name)
-                    gt_value = ground_truth_pii.get(attr_name)
-                    judge_tasks.append(
-                        asyncio.create_task(
-                            judge_guess(client, models["judge"], attr_name, gt_value, guess, original_text, entry_index, max_retries, retry_delay)
-                        )
-                    )
-                judgements_list = await asyncio.gather(*judge_tasks)
-                judgements: Dict[str, str] = dict(zip(attributes_to_judge, judgements_list))
-                last_judgements = judgements
-
-                # 4. Check for Success
-                judge_errors = [attr for attr, verdict in judgements.items() if verdict == "Error"]
-
-                if judge_errors:
-                    logging.error(f"Entry {entry_index + 1}: Judge failed for attributes: {judge_errors} on iteration {iteration + 1}. Stopping.")
-                    anonymization_metadata = {"status": "error", "iterations_used": iteration + 1, "reason": f"Judge failed for {judge_errors}", "final_attacker_guesses": last_attacker_guesses}
-                    return entry_index, original_data, current_text, anonymization_metadata
-
-                leaked_with_value = [
-                    attr for attr, verdict in judgements.items()
-                    if verdict == "Correct" and ground_truth_pii.get(attr) is not None
-                ]
-
-                if not leaked_with_value:
-                    logging.info(f"Entry {entry_index + 1}: Anonymization successful (no non-null GT leaked) after {iteration + 1} iterations.")
-                    final_anonymized_text = current_text
-                    anonymization_metadata = {"status": "success", "iterations_used": iteration + 1, "final_attacker_guesses": last_attacker_guesses}
-                    break
-                else:
-                    # 构建下一轮的泄露反馈
-                    leak_feedback = {k: last_attacker_guesses.get(k) for k in leaked_with_value}
-                    logging.info(f"Entry {entry_index + 1}: Iteration {iteration + 1} failed. Leaked (with value): {leaked_with_value}. Guesses: { {k: last_attacker_guesses.get(k) for k in leaked_with_value} }")
-
+            if attacker_guess_raw:
+                attacker_guess = json.loads(attacker_guess_raw)
+                meta["final_attacker_guess"] = attacker_guess
             else:
-                logging.warning(f"Entry {entry_index + 1}: Max iterations ({max_iterations}) reached.")
-                final_anonymized_text = current_text
-                final_leaked_with_value = [
-                    attr for attr, verdict in last_judgements.items()
-                    if verdict == "Correct" and ground_truth_pii.get(attr) is not None
-                ]
-                anonymization_metadata = {"status": "max_iterations_reached", "iterations_used": max_iterations, "final_leaked_attributes": final_leaked_with_value, "final_attacker_guesses": last_attacker_guesses}
-
-            logging.debug(f"Entry {entry_index + 1}: Releasing main semaphore.")
-            return entry_index, original_data, final_anonymized_text, anonymization_metadata
-
+                 raise ValueError("Attacker LLM returned empty or None JSON response.")
         except Exception as e:
-            logging.exception(f"Entry {entry_index + 1}: Unexpected error during processing loop: {e}")
-            return entry_index, original_data, None, {"status": "error", "reason": f"Unexpected loop error: {e}"}
+            # 如果 Attacker 无法生成有效 JSON，则下一轮的 Feedback 告知 Anonymizer 保持不变
+            logging.error(f"Attacker JSON decode/parse error: {e}")
+            feedback = f"The attacker failed to produce a valid JSON profile. Error: {e}"
+            continue # 跳过本轮评判，进入下一轮匿名
 
+        # 3) 评判泄露 (Judge) - 使用 LLM 裁判
+        leaked_attributes: List[str] = []
+        judge_errors: List[str] = []
+        leaked_feedback: Dict[str, Any] = {}
+        
+        # 只对 ground_truth_pii 中有值的属性进行评测
+        for attr_name in ground_truth_pii.keys():
+            gt_value = ground_truth_pii.get(attr_name)
+            guess = attacker_guess.get(attr_name)
+            
+            # 使用 LLM Judge 进行判断
+            verdict = call_judge_llm(client, model, attr_name, gt_value, guess, original_text)
+            
+            if verdict == "Correct":
+                # 记录泄露的属性和攻击者的猜测值
+                leaked_attributes.append(f"{attr_name} (guessed: '{guess}', true: '{gt_value}')")
+                leaked_feedback[attr_name] = guess
+            elif verdict == "Error":
+                judge_errors.append(attr_name)
 
-# --- Async 主函数 ---
-async def run_main():
-    parser = argparse.ArgumentParser(description="Adversarially anonymize biographies using LLMs for Anonymizer, Attacker, and Judge.")
-    parser.add_argument("--input_file", help="Path to the input JSONL file (e.g., db_bio_with_attributes.jsonl).")
-    parser.add_argument("--output_file", help="Path to the output JSONL file for anonymized results.")
-    parser.add_argument("--api_key", required=True, help="API key for the LLM service.")
-    parser.add_argument("--base_url", default="https://api.deepseek.com/v1", help="Base URL for the API endpoint (default: DeepSeek).")
-    parser.add_argument("--anonymizer_model", default="deepseek-chat", help="Model for anonymizing text.")
-    parser.add_argument("--attacker_model", default="deepseek-chat", help="Model for attacking/guessing PII.")
-    parser.add_argument("--judge_model", default="deepseek-chat", help="Model for judging attacker guesses.")
-    parser.add_argument("--limit", type=int, default=None, help="Limit processing to the first N entries (optional).")
-    parser.add_argument("--max_iterations", type=int, default=5, help="Maximum anonymization iterations per entry.")
-    parser.add_argument("--max_retries", type=int, default=3, help="Maximum number of API call retries on failure.")
-    parser.add_argument("--retry_delay", type=int, default=5, help="Base delay (in seconds) between API call retries.")
-    parser.add_argument("--concurrency", type=int, default=5, help="Maximum number of concurrent biographies to process.")
+        if judge_errors:
+            meta["status"] = "judge_error"; meta["error"] = f"judge_failed_for: {judge_errors}"
+            return current_anonymized_text, meta
 
+        if not leaked_attributes:
+            meta["status"] = "success"
+            return current_anonymized_text, meta
+        else:
+            # 构造下一轮的反馈信息
+            feedback_items = [f"- {k}: guessed {v}" for k, v in leaked_feedback.items()]
+            feedback = (
+                "The attacker correctly inferred the following attributes from your rewritten text:\n"
+                f"{'\n'.join(feedback_items)}\n"
+                "Please generalize the text further to hide these specific clues."
+            )
+            meta["final_leaked_attributes"] = leaked_attributes
+            
+    # 达到最大迭代次数
+    return current_anonymized_text, meta
+
+# --- 重构后的 process_record 函数 ---
+
+def process_record(data: Dict[str, Any], max_iterations: int) -> Dict[str, Any]:
+    """
+    辅助函数，用于处理单条记录。
+    接收一个包含原始数据的字典，返回处理后的完整字典。
+    """
+    # 匹配新的数据结构
+    try:
+        # PII 属性从 'personality' 字段获取
+        personality = data.get("personality")
+        # 原始文本从 'text' 字段获取 (如果原数据结构使用 'response'，此处可能需要调整)
+        original_text = str(data.get("text", data.get("response", "")))
+        
+        # 注入 'name' 字段 (如果存在于 'people' 中且 personality 中没有)
+        combined_pii = personality.copy() if personality else {}
+        name_data = data.get("people")
+        if not combined_pii.get("name") and name_data:
+            combined_pii["name"] = name_data
+            
+    except Exception:
+        data["anonymization_meta"] = {"status": "skipped_data_read_error"}
+        return data
+
+    if not original_text or not combined_pii:
+        data["anonymization_meta"] = {"status": "skipped_incomplete_data"}
+        return data
+    
+    if not isinstance(combined_pii, dict):
+        data["anonymization_meta"] = {"status": "skipped_invalid_personality"}
+        return data
+
+    # 运行对抗性匿名化
+    anonymized_response, meta = adversarial_anonymization_biography(
+        original_text=original_text,
+        pii_dict=combined_pii,
+        max_iterations=max_iterations
+    )
+    
+    # 保持原代码的输出字段命名
+    data["anonymized_response"] = anonymized_response
+    data["anonymization_meta"] = meta
+    
+    # 额外添加一个字段以清晰表示匿名后的文本 (如果需要，否则与 'anonymized_response' 重复)
+    data["anonymized_text"] = anonymized_response
+    
+    return data
+
+# --- main 函数 (保持上传代码中的结构，兼容 API Key 覆盖) ---
+
+def main():
+    parser = argparse.ArgumentParser(description="Adversarially anonymize biographies in a JSONL file in parallel using API.")
+    parser.add_argument("--max_workers", type=int, default=10, help="Maximum number of parallel threads to use.")
+    parser.add_argument("--input_file", type=str, required=True, help="Path to the input JSONL file (e.g., db_bio_with_attributes.jsonl).")
+    parser.add_argument("--output_file", type=str, required=True, help="Path to the output JSONL file.")
+    parser.add_argument("--model", type=str, default=LLM_MODEL, help=f"LLM model name (default: {LLM_MODEL}). Used for Anonymizer, Attacker, and Judge.")
+    parser.add_argument("--max_iterations", type=int, default=5, help="Maximum adversarial iterations per record.")
+    parser.add_argument("--api_key", type=str, default=None, help="Override API key (default: use API_KEY env)")
+    parser.add_argument("--base_url", type=str, default=None, help="Override API base URL (default: https://api.deepseek.com/v1).")
+    parser.add_argument("--success_file", type=str, default=None, help="Optional path to save only successful records.")
+    parser.add_argument("--failed_file", type=str, default=None, help="Optional path to save failed records.")
+    parser.add_argument("--limit", type=int, default=None, help="Only process the first N records.")
     args = parser.parse_args()
 
-    models = {
-        "anonymizer": args.anonymizer_model,
-        "attacker": args.attacker_model,
-        "judge": args.judge_model
-    }
-
-    client: Optional[AsyncOpenAI] = None
+    # --- Client/Model 初始化 ---
+    global GLOBAL_CLIENT
+    global LLM_MODEL
+    
+    if args.model:
+        LLM_MODEL = args.model 
+        
+    # 重新初始化 Client，使用命令行参数或环境变量
     try:
-        client = AsyncOpenAI(api_key=args.api_key, base_url=args.base_url)
-        logging.info(f"Initialized AsyncOpenAI client for endpoint: {args.base_url}")
-        logging.info(f"Models - Anonymizer: {models['anonymizer']}, Attacker: {models['attacker']}, Judge: {models['judge']}")
-        logging.info(f"Concurrency: {args.concurrency}, Max Iterations: {args.max_iterations}")
-    except Exception as e:
-        logging.error(f"Failed to initialize AsyncOpenAI client: {e}")
-        return
-
-    entries_to_process: List[Tuple[int, Dict[str, Any]]] = []
-    total_lines_read = 0
-    skipped_json_errors = 0
-    skipped_missing_data = 0
-    try:
-        with open(args.input_file, 'r', encoding='utf-8') as infile:
-            logging.info(f"Reading input file: {args.input_file}")
-            for i, line in enumerate(infile):
-                total_lines_read += 1
-                if args.limit is not None and i >= args.limit:
-                    logging.info(f"Reached input limit of {args.limit} lines.")
-                    break
-                try:
-                    original_data = json.loads(line.strip())
-                    if "text" in original_data and "personality" in original_data and original_data["personality"] is not None:
-                        entries_to_process.append((i, original_data))
-                    else:
-                        logging.warning(f"Skipping line {i + 1} due to missing 'text' or 'personality' key, or personality is null.")
-                        skipped_missing_data += 1
-                except json.JSONDecodeError:
-                    logging.error(f"Skipping line {i + 1} due to invalid JSON.")
-                    skipped_json_errors += 1
-
-        logging.info(f"Read {total_lines_read} lines (up to limit), found {len(entries_to_process)} valid entries to process.")
-        if not entries_to_process:
-            logging.warning("No valid entries found to process.")
-            if client: await client.close()
-            return
-
-    except FileNotFoundError:
-        logging.error(f"Input file not found: {args.input_file}")
-        return
-    except IOError as e:
-        logging.error(f"Error reading input file: {e}")
-        return
-
-    # --- 创建并发任务 ---
-    semaphore = asyncio.Semaphore(args.concurrency)
-    tasks = []
-    for index, data in entries_to_process:
-        tasks.append(
-            asyncio.create_task(
-                process_single_biography(
-                    client, semaphore, index, data, models,
-                    args.max_iterations, args.max_retries, args.retry_delay
-                )
-            )
+        GLOBAL_CLIENT = OpenAI(
+            api_key=args.api_key or os.environ.get("API_KEY"),
+            base_url=args.base_url or "https://api.deepseek.com/v1"
         )
-
-    logging.info(f"Created {len(tasks)} tasks for concurrent processing.")
-
-    # --- 执行任务并收集结果 ---
-    results_list: List[Tuple[int, Dict[str, Any], Optional[str], Dict[str, Any]]] = []
-    task_exception = None
-    try:
-        # tqdm.asyncio.gather 可能不可用，保留兼容分支
-        if 'async_tqdm' in globals() and hasattr(async_tqdm, 'gather'):
-            logging.info("Using tqdm.asyncio.gather for progress tracking.")
-            raw_results = await async_tqdm.gather(*tasks, desc="Anonymizing Biographies")
-        else:
-            logging.info("tqdm.asyncio.gather not available, using standard asyncio.gather.")
-            raw_results = await asyncio.gather(*tasks)
-        results_list.extend(raw_results)
-        logging.info("All tasks completed gathering.")
+        GLOBAL_CLIENT.models.list()
     except Exception as e:
-        task_exception = e
-        logging.exception(f"An error occurred during asyncio task gathering: {e}")
-        logging.error("Attempting to process completed tasks before the error...")
-        for task in tasks:
-            if task.done():
-                try:
-                    results_list.append(task.result())
-                except Exception as task_exc:
-                    logging.error(f"Error retrieving result from a completed task: {task_exc}")
-
-    finally:
-        if client:
-            await client.close()
-            logging.info("AsyncOpenAI client closed.")
-
-    # --- 处理结果并写入输出文件 ---
-    success_count = 0
-    max_iter_count = 0
-    error_count = 0
-
-    results_list.sort(key=lambda x: x[0])
-
+        print(f"Error: Failed to initialize/reinitialize client. Please check API key and base URL: {e}"); sys.exit(1)
+            
+    # --- 数据加载 ---
     try:
-        logging.info(f"Writing {len(results_list)} results to {args.output_file}...")
-        with open(args.output_file, 'w', encoding='utf-8') as outfile:
-            for index, original_data, anonymized_text, metadata in sync_tqdm(results_list, desc="Writing results"):
-                output_entry = copy.deepcopy(original_data)
-                output_entry["anonymized_text"] = anonymized_text
-                output_entry["anonymization_meta"] = metadata
-                outfile.write(json.dumps(output_entry, ensure_ascii=False) + '\n')
+        with open(args.input_file, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+    except FileNotFoundError:
+        print(f"Error: Input file not found at '{args.input_file}'"); sys.exit(1)
 
-                status = metadata.get("status", "unknown")
-                if status == "success":
-                    success_count += 1
-                elif status == "max_iterations_reached":
-                    max_iter_count += 1
-                elif status == "error":
-                    error_count += 1
+    records_to_process = []
+    for line in lines:
+        try:
+            if line.strip():
+                records_to_process.append(json.loads(line))
+        except json.JSONDecodeError:
+            logging.error(f"Skipping line due to invalid JSON: {line.strip()}")
 
-    except IOError as e:
-        logging.error(f"Error writing output file: {e}")
-    finally:
-        logging.info("--- Anonymization Summary ---")
-        logging.info(f"Total lines read (up to limit): {total_lines_read}")
-        logging.info(f"JSON decode errors skipped: {skipped_json_errors}")
-        logging.info(f"Skipped (missing text/personality or null personality): {skipped_missing_data}")
-        logging.info(f"Valid entries attempted: {len(entries_to_process)}")
-        logging.info(f"Results obtained (incl. errors): {len(results_list)}")
-        logging.info(f"Successfully anonymized: {success_count}")
-        logging.info(f"Reached max iterations: {max_iter_count}")
-        logging.info(f"Errors during processing: {error_count}")
-        logging.info(f"Output written to: {args.output_file}")
-        if task_exception:
-            logging.error(f"Processing stopped prematurely due to error during task execution: {task_exception}")
+    if args.limit:
+        records_to_process = records_to_process[:args.limit]
+    
+    print(f"Starting parallel processing for {len(records_to_process)} records with model {LLM_MODEL} using up to {args.max_workers} workers...")
+
+    # --- 并行处理 ---
+    results = []
+    # 使用 ThreadPoolExecutor 进行 API 并行调用
+    with ThreadPoolExecutor(max_workers=args.max_workers) as executor:
+        future_to_record = {executor.submit(process_record, record, args.max_iterations): record for record in records_to_process}
+        
+        for future in tqdm(as_completed(future_to_record), total=len(records_to_process), desc="Anonymizing profiles"):
+            try:
+                processed_record = future.result()
+                results.append(processed_record)
+            except Exception as exc:
+                print(f"A record generated an exception: {exc}")
+
+    # --- 结果写入 ---
+    print(f"\nProcessing complete. Writing {len(results)} results to output files...")
+    
+    # 使用 os.devnull 确保文件即使未指定也能正常处理
+    with open(args.output_file, 'w', encoding='utf-8') as outfile, \
+         open(args.success_file, 'w', encoding='utf-8') if args.success_file else open(os.devnull, 'w') as success_out, \
+         open(args.failed_file, 'w', encoding='utf-8') if args.failed_file else open(os.devnull, 'w') as failed_out:
+        
+        for result in results:
+            outfile.write(json.dumps(result, ensure_ascii=False) + '\n')
+            meta = result.get("anonymization_meta", {})
+            # 保持本地代码的成功/失败状态判断逻辑
+            # 增加对新的 'judge_error' 的失败判断
+            if meta.get("status") == "success":
+                success_out.write(json.dumps(result, ensure_ascii=False) + '\n')
+            elif meta.get("status") in ("max_iterations_reached", "api_error", "skipped_incomplete_data", "skipped_data_read_error", "skipped_invalid_personality", "judge_error"):
+                failed_out.write(json.dumps(result, ensure_ascii=False) + '\n')
+
+    print(f"Anonymized data saved to '{args.output_file}'.")
 
 if __name__ == "__main__":
-    try:
-        import sys
-        if sys.version_info < (3, 7):
-            print("This script requires Python 3.7+ for asyncio.run()")
-            exit()
-        asyncio.run(run_main())
-    except KeyboardInterrupt:
-        logging.info("Processing interrupted by user.")
+    main()
