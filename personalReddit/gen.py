@@ -14,12 +14,12 @@ from train import TrainableEnhancer, REDDIT_PROMPT_SYSTEM, REDDIT_PROMPT_USER
 
 class Config:
     # 设备
-    IEM_DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
-    LLM_DEVICE = "cuda:1" if (torch.cuda.is_available() and torch.cuda.device_count() > 1) else IEM_DEVICE
+    UEM_DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
+    LLM_DEVICE = "cuda:1" if (torch.cuda.is_available() and torch.cuda.device_count() > 1) else UEM_DEVICE
 
     # 模型路径
     LLM_PATH = "/root/autodl-tmp/huggingface/hub/models--meta-llama--Meta-Llama-3-8B-Instruct/snapshots/8afb486c1db24fe5011ec46dfbe5b5dccdb575c2"
-    IEM_PATH = "/root/autodl-tmp/huggingface/hub/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09"
+    UEM_PATH = "/root/autodl-tmp/huggingface/hub/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09"
     CKPT_PATH = "/root/autodl-tmp/PPPUE/personalReddit/ckpt/Prefix_LoRA"
 
     # 数据与输出
@@ -28,12 +28,12 @@ class Config:
 
     # 评估/生成模式
     EVAL_MODE = "DP"  # Options: BASELINE, STANDARD, CLIPPING_ONLY, DP, ORIGINAL_TEXT_BASELINE
-    EPSILON = 50.0
+    EPSILON = 1.0  # 用于 DP 模式的隐私预算
     CLIPPING_NORM = 1.0
     PREFIX_LENGTH = 5
     LIMIT: Optional[int] = None
 
-    # LoRA 配置（用于找回与合并）
+    # LoRA 配置
     LORA_R = 16
     LORA_ALPHA = 32
     LORA_DROPOUT = 0.1
@@ -108,7 +108,7 @@ def generate_answer_for_entry(
             iem_inputs = eval_model.uem_tokenizer(
                 loss_desc_sentence, return_tensors="pt",
                 padding=True, truncation=True, max_length=128
-            ).to(config.IEM_DEVICE)
+            ).to(config.UEM_DEVICE)
             iem_outputs = eval_model.uem(**iem_inputs)
             sentence_representation = iem_outputs.last_hidden_state[:, 0, :]
             clean_prefix = eval_model.projection_layer(sentence_representation)
@@ -227,14 +227,14 @@ def main(config: Config):
         print("LoRA adapters loaded and merged.")
 
         try:
-            iem_tokenizer = AutoTokenizer.from_pretrained(config.IEM_PATH, use_fast=False)
+            iem_tokenizer = AutoTokenizer.from_pretrained(config.UEM_PATH, use_fast=False)
         except Exception as e:
             print(f"Error loading IEM tokenizer: {e}")
             return
 
-        eval_model = TrainableEnhancer(config.IEM_PATH, iem_tokenizer, None, llm_student, shared_tokenizer)
-        eval_model.uem.to(config.IEM_DEVICE)
-        eval_model.projection_layer.to(config.IEM_DEVICE)
+        eval_model = TrainableEnhancer(config.UEM_PATH, iem_tokenizer, None, llm_student, shared_tokenizer)
+        eval_model.uem.to(config.UEM_DEVICE)
+        eval_model.projection_layer.to(config.UEM_DEVICE)
 
         print(f"Loading IEM & projection weights: {other_weights_path}")
         checkpoint = torch.load(other_weights_path, map_location="cpu")
@@ -342,7 +342,7 @@ if __name__ == "__main__":
 
     if cfg.EVAL_MODE not in ["BASELINE", "ORIGINAL_TEXT_BASELINE"]:
         for name, path in {
-            "IEM_PATH": cfg.IEM_PATH,
+            "UEM_PATH": cfg.UEM_PATH,
             "CKPT_PATH": cfg.CKPT_PATH
         }.items():
             if not os.path.exists(path):

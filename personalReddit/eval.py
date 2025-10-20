@@ -8,56 +8,53 @@ from typing import Dict, List, Optional
 from tqdm import tqdm
 from openai import OpenAI
 
-# ===== 提示词保持不变（原样保留） =====
-JUDGE_PROMPT_SYSTEM = """
-You are an evaluation expert. Output ONLY a single integer score between 1 and 10 based on the provided rubric and context.
+PROMPT_SCORE_SYSTEM = """
+You are a highly discerning evaluation expert with deep contextual understanding of professional roles and their nuances.
 """
 
-JUDGE_PROMPT_USER = """
-Role: You are a highly discerning evaluation expert with deep contextual understanding of professional roles and their nuances.
+PROMPT_SCORE_USER = """
+Evaluate the quality of a "Generated Answer" regarding a person's occupation, using the full **[Original User Response]** (provided in the context of the **[Question Asked]**) as the ultimate source of truth. The "Generated Answer" was produced by an AI that saw the [Question Asked] and an ANONYMIZED version of the [User Response]. Focus on **how well the AI's answer reflects specific, nuanced occupation-related information present *only* in the [Original User Response]**.
 
-Task: Evaluate the quality of a "Generated Answer" regarding a person's occupation, using the full **[Original User Response]** (provided in the context of the **[Question Asked]**) as the ultimate source of truth. The "Generated Answer" was produced by an AI that saw the [Question Asked] and an ANONYMIZED version of the [User Response]. Focus on **how well the AI's answer reflects specific, nuanced occupation-related information present *only* in the [Original User Response]**.
+Rate the "Generated Answer" on a scale of 1 to 10 based on the rubric below. Output ONLY the final numerical score (1-10) and nothing else.
 
-Rate the "Generated Answer" on a scale of 1 to 10 based on the rubric below. **Output ONLY the final numerical score (1-10) and nothing else.**
-
-**SCORING RUBRIC (10-Point Scale):**
-* **1-2 (Incorrect)**: Completely wrong or irrelevant.
-* **3-4 (Weakly Related)**: Related but incorrect field.
-* **5-6 (Correct Generalization)**: Correct but overly general category plausible from anonymized text.
-* **7-8 (Good Recovery)**: Correctly identifies a significant past profession, close synonym, but misses the current/precise role from the original.
-* **9-10 (Excellent Recovery)**: Highly specific and correct identification of the primary, current profession only recoverable from the original response (10 = perfect match).
+SCORING RUBRIC (10-Point Scale):
+- 1-2 (Incorrect): Completely wrong or irrelevant.
+- 3-4 (Weakly Related): Related but incorrect field.
+- 5-6 (Correct Generalization): Correct but overly general category plausible from anonymized text.
+- 7-8 (Good Recovery): Correctly identifies a significant past profession, close synonym, but misses the current/precise role from the original.
+- 9-10 (Excellent Recovery): Highly specific and correct identification of the primary, current profession only recoverable from the original response (10 = perfect match).
 
 --- EXAMPLES ---
 
-**Example 1:**
+Example 1:
 [Question Asked]: "..."
 [Original User Response]: "...As an engineer... intricate structural machinery..."
 [Ground Truth Profession]: "structural engineer"
 [Generated Answer]: "Structural Engineer"
 Your Output: 10
 
-**Example 2:**
+Example 2:
 [Question Asked]: "..."
 [Original User Response]: "...retired-CEO gig..."
 [Ground Truth Profession]: "retired CEO"
 [Generated Answer]: "CEO"
 Your Output: 8
 
-**Example 3:**
+Example 3:
 [Question Asked]: "..."
 [Original User Response]: "...Being an astronomer... spinning theories, deciphering the secrets of the cosmic ballet."
 [Ground Truth Profession]: "astronomer"
 [Generated Answer]: "Scientist"
 Your Output: 6
 
-**Example 4:**
+Example 4:
 [Question Asked]: "..."
 [Original User Response]: "...Bezier curves... Pantone colors..."
 [Ground Truth Profession]: "graphic designer"
 [Generated Answer]: "Software Developer"
 Your Output: 4
 
-**Example 5:**
+Example 5:
 [Question Asked]: "..."
 [Original User Response]: "...celestial phenomenon I've observed... Royal Observatory..."
 [Ground Truth Profession]: "astronomer"
@@ -80,11 +77,11 @@ Your Output: 2
 Your Output:
 """
 
-PROMPT_JUDGE_SYSTEM = """
+PROMPT_ACC_SYSTEM = """
 You are a highly precise evaluation expert. 
 """
 
-PROMPT_JUDGE_USER = """
+PROMPT_ACC_USER = """
 Your task is to determine if the "Generated Answer" correctly identifies the "Ground Truth Profession". Output your final verdict as a single word: "Correct" or "Incorrect".
 
 --- EXAMPLES ---
@@ -107,7 +104,6 @@ Generated Answer: "{generated_answer}"
 
 Your verdict:
 """
-# ======================================
 
 class Config:
     # DeepSeek API
@@ -131,7 +127,7 @@ def generate_api_response(client: OpenAI, model: str, messages: List[Dict], temp
         return "API_ERROR"
 
 def judge_score(client: OpenAI, cfg: Config, question_asked: str, original_text: str, ground_truth_label: str, generated_answer: str) -> Optional[int]:
-    user_prompt = JUDGE_PROMPT_USER.format(
+    user_prompt = PROMPT_SCORE_USER.format(
         question_asked=question_asked,
         original_text=original_text,
         ground_truth_label=ground_truth_label,
@@ -140,7 +136,7 @@ def judge_score(client: OpenAI, cfg: Config, question_asked: str, original_text:
     resp = generate_api_response(
         client,
         cfg.JUDGE_MODEL_NAME,
-        [{"role": "system", "content": JUDGE_PROMPT_SYSTEM},
+        [{"role": "system", "content": PROMPT_SCORE_SYSTEM},
          {"role": "user", "content": user_prompt}],
         0.0
     )
@@ -158,11 +154,11 @@ def judge_score(client: OpenAI, cfg: Config, question_asked: str, original_text:
         return None
 
 def judge_discrete(client: OpenAI, cfg: Config, ground_truth_label: str, generated_answer: str) -> Optional[bool]:
-    judge_prompt = PROMPT_JUDGE_USER.format(ground_truth=ground_truth_label, generated_answer=generated_answer)
+    judge_prompt = PROMPT_ACC_USER.format(ground_truth=ground_truth_label, generated_answer=generated_answer)
     resp = generate_api_response(
         client,
         cfg.JUDGE_MODEL_NAME,
-        [{"role": "system", "content": PROMPT_JUDGE_SYSTEM},
+        [{"role": "system", "content": PROMPT_ACC_SYSTEM},
          {"role": "user", "content": judge_prompt}],
         0.0
     )

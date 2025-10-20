@@ -24,10 +24,11 @@ except Exception as e:
     sys.exit(1)
 
 # --- Prompt模板 ---
-PROMPT_TEMPLATE = """
-Role: You are an AI assistant specializing in text analysis.
-
-Task: Compare the [Original Text] and [Anonymized Text]. Your goal is to create a very concise note describing only the information that was lost and is useful for guessing the user's occupation.
+PROMPT_LOSS_SYSTEM = """
+You are an expert in analyzing text and extracting relevant information about occupations.
+"""
+PROMPT_LOSS_USER = """
+Compare the [Original Text] and [Anonymized Text]. Your goal is to create a very concise note describing only the information that was lost and is useful for guessing the user's occupation.
 
 Follow these rules:
 
@@ -36,21 +37,6 @@ Follow these rules:
 - Ignore Irrelevant Details: Do not include lost information about hobbies, music, personal relationships, or specific non-work-related events.
 
 - Handle "No Clues": If no occupation-relevant information was lost, simply write "No occupation-relevant information was lost."
-
-Example 1 (Relevant clues):
-[Original Text]: "As a 35-year-old software engineer from Berlin, I enjoy hiking."
-[Anonymized Text]: "As a professional in my thirties from a European city, I enjoy outdoor activities."
-Your Output: The user is a software engineer from Berlin.
-
-Example 2 (Filtering is needed):
-[Original Text]: "After a long week of drafting legal briefs, I love to relax by listening to my favorite band, Queen."
-[Anonymized Text]: "After a long work week, I enjoy listening to classic rock music."
-Your Output: The user's work involves drafting legal briefs.
-
-Example 3 (No relevant clues):
-[Original Text]: "My favorite band is Queen, and I saw them live in 1986."
-[Anonymized Text]: "I enjoy classic rock music and have seen some legendary bands live."
-Your Output: No occupation-relevant information was lost.
 
 [Original Text]:
 {original_text}
@@ -68,6 +54,7 @@ def generate_api_response(prompt_text: str, model: str, temperature: float, max_
         completion = client.chat.completions.create(
             model=model,
             messages=[
+                {"role": "system", "content": PROMPT_LOSS_SYSTEM},
                 {"role": "user", "content": prompt_text}
             ],
             temperature=temperature,
@@ -92,7 +79,7 @@ def process_record(data: Dict[str, Any], model: str) -> Dict[str, Any]:
         data['loss_description_sentence'] = "Error: Missing original or anonymized response."
         return data
 
-    prompt = PROMPT_TEMPLATE.format(original_text=original_text, anonymized_text=anonymized_text)
+    prompt = PROMPT_LOSS_USER.format(original_text=original_text, anonymized_text=anonymized_text)
     description = generate_api_response(prompt, model=model, temperature=0.2)
     
     data['loss_description_sentence'] = description

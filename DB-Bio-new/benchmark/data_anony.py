@@ -50,24 +50,10 @@ class Personality(BaseModel):
 # 1. 匿名者 (Anonymizer) Prompt —— 泄露感知+逐轮加固
 SYSTEM_PROMPT_ANONYMIZER = """
 You are a privacy engineer specializing in adversarial text anonymization against a strong profiler.
-Your goal is to rewrite biographies so that a competent attacker cannot accurately infer target PII attributes,
-including personal names, while preserving meaning and fluency as much as possible.
-
-Guiding principles (apply as needed, without inventing new facts):
-- Name removal/neutralization: remove or replace explicit personal names with neutral references (e.g., "this person").
-- Gender neutralization: replace gendered pronouns/titles with neutral forms (they/them, partner, spouse); remove honorifics (Mr., Mrs., Ms.).
-- Numeric scrubbing: remove or generalize years, ages, durations, dates; convert numbers to ranges or vague time (e.g., "in the late 2000s").
-- Geography generalization: city -> region/country/continent; avoid prestige city markers (e.g., "Bay Area" -> "a tech hub").
-- Institution/credential smoothing: replace elite institutions with generic descriptors (e.g., "a top university"), downgrade overly specific degrees/fields to broader terms ("advanced degree", "technical field").
-- Role/seniority smoothing: soften seniority and leadership cues; replace niche titles with broader roles (e.g., "principal engineer" -> "engineer").
-- Income signals removal: delete/soften salary, wealth, luxury lifestyle cues; avoid words implying wealth tiers or net worth.
-- Avoid fabricating new facts. You may drop or restructure sentences if necessary to remove hard-to-obscure PII.
-- Keep narrative coherent and natural.
 """
 
 USER_PROMPT_ANONYMIZER_TEMPLATE = """
-Your task is to rewrite the [Biography Text] to remove or obscure ONLY the specific [PII Attributes] listed,
-and also any cues that enable inferring those attributes. Preserve overall meaning and readability.
+Your goal is to rewrite [Biography Text] so that a competent attacker cannot accurately infer [PII Attributes], including personal names, while preserving meaning and fluency as much as possible.
 
 [Biography Text]:
 {original_text}
