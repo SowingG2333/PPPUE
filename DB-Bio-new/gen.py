@@ -23,11 +23,11 @@ class Config:
 
     # 数据与输出
     INPUT_DATA_FILE = "/root/autodl-tmp/PPPUE/DB-Bio-new/benchmark/test/test_anony_with_loss.jsonl"
-    OUTPUT_DIR = "/root/autodl-tmp/PPPUE/DB-Bio-new/results/ouput"
+    OUTPUT_DIR = "/root/autodl-tmp/PPPUE/DB-Bio-new/results/output"
 
     # 生成设置
     EVAL_MODE = "DP"  # Options: BASELINE, STANDARD, CLIPPING_ONLY, DP, ORIGINAL_TEXT
-    EPSILON = 50.0
+    EPSILON = 10.0
     CLIPPING_NORM = 1.0
     PREFIX_LENGTH = 5
     LIMIT: Optional[int] = None

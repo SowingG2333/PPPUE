@@ -6,7 +6,7 @@ from typing import Dict, List, Any, Optional
 
 from tqdm import tqdm
 from openai import OpenAI
-# 新增导入
+
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 
