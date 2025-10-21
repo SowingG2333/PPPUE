@@ -1,9 +1,9 @@
 import json
 import random
 
-SOURCE_JSONL = "/root/autodl-tmp/PPPUE/benchmark/reprocess/task_loss_description/train/train_anony_with_loss.jsonl"
-TRAIN_JSONL = "/root/autodl-tmp/PPPUE/benchmark/reprocess/task_loss_description/train/seed_42/train_split.jsonl"
-VAL_JSONL = "/root/autodl-tmp/PPPUE/benchmark/reprocess/task_loss_description/train/seed_42/val_split.jsonl"
+SOURCE_JSONL = "/root/autodl-tmp/PPPUE/PersonalReddit/benchmark/train/api_anony_train_with_api_loss.jsonl"
+TRAIN_JSONL = "/root/autodl-tmp/PPPUE/PersonalReddit/benchmark/train/seed_42/train_split.jsonl"
+VAL_JSONL = "/root/autodl-tmp/PPPUE/PersonalReddit/benchmark/train/seed_42/val_split.jsonl"
 VAL_RATIO = 0.2
 SEED = 42
 

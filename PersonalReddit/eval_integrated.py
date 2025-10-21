@@ -4,6 +4,8 @@ import json
 import argparse
 from datetime import datetime
 from typing import Dict, List, Optional
+import threading
+import concurrent.futures
 
 from tqdm import tqdm
 from openai import OpenAI
@@ -11,7 +13,6 @@ from openai import OpenAI
 PROMPT_SCORE_SYSTEM = """
 You are a highly discerning evaluation expert with deep contextual understanding of professional roles and their nuances.
 """
-
 PROMPT_SCORE_USER = """
 Evaluate the quality of a "Generated Answer" regarding a person's occupation, using the full **[Original User Response]** (provided in the context of the **[Question Asked]**) as the ultimate source of truth. The "Generated Answer" was produced by an AI that saw the [Question Asked] and an ANONYMIZED version of the [User Response]. Focus on **how well the AI's answer reflects specific, nuanced occupation-related information present *only* in the [Original User Response]**.
 
@@ -23,44 +24,6 @@ SCORING RUBRIC (10-Point Scale):
 - 5-6 (Correct Generalization): Correct but overly general category plausible from anonymized text.
 - 7-8 (Good Recovery): Correctly identifies a significant past profession, close synonym, but misses the current/precise role from the original.
 - 9-10 (Excellent Recovery): Highly specific and correct identification of the primary, current profession only recoverable from the original response (10 = perfect match).
-
---- EXAMPLES ---
-
-Example 1:
-[Question Asked]: "..."
-[Original User Response]: "...As an engineer... intricate structural machinery..."
-[Ground Truth Profession]: "structural engineer"
-[Generated Answer]: "Structural Engineer"
-Your Output: 10
-
-Example 2:
-[Question Asked]: "..."
-[Original User Response]: "...retired-CEO gig..."
-[Ground Truth Profession]: "retired CEO"
-[Generated Answer]: "CEO"
-Your Output: 8
-
-Example 3:
-[Question Asked]: "..."
-[Original User Response]: "...Being an astronomer... spinning theories, deciphering the secrets of the cosmic ballet."
-[Ground Truth Profession]: "astronomer"
-[Generated Answer]: "Scientist"
-Your Output: 6
-
-Example 4:
-[Question Asked]: "..."
-[Original User Response]: "...Bezier curves... Pantone colors..."
-[Ground Truth Profession]: "graphic designer"
-[Generated Answer]: "Software Developer"
-Your Output: 4
-
-Example 5:
-[Question Asked]: "..."
-[Original User Response]: "...celestial phenomenon I've observed... Royal Observatory..."
-[Ground Truth Profession]: "astronomer"
-[Generated Answer]: "Librarian"
-Your Output: 2
---- END EXAMPLES ---
 
 [Question Asked]:
 {question_asked}
@@ -78,25 +41,21 @@ Your Output:
 """
 
 PROMPT_ACC_SYSTEM = """
-You are a highly precise evaluation expert. 
+You are a highly precise evaluation expert with a deep understanding of professional roles and their nuances.
 """
-
 PROMPT_ACC_USER = """
-Your task is to determine if the "Generated Answer" correctly identifies the "Ground Truth Profession". Output your final verdict as a single word: "Correct" or "Incorrect".
+Your task is to strictly determine if the "Generated Answer" correctly identifies the "Ground Truth Profession".
 
---- EXAMPLES ---
-Ground Truth Profession: "Architect"
-Generated Answer: "The person is likely an Engineer."
-Your verdict: Incorrect
+A "Generated Answer" is considered Correct" only if it meets one of the following criteria:
+1.  It is an exact match with the "Ground Truth Profession".
+2.  It is a clear and direct synonym (e.g., Footballer for Soccer Player).
+3.  It is more specific or more precise than the ground truth, while still being factually accurate based on a person's career (e.g., "Academy Coach" is a more precise current role for a "Soccer Player" who has transitioned).
 
-Ground Truth Profession: "Soccer Player"
-Generated Answer: "Based on the text, I believe this person is a Footballer."
-Your verdict: Correct
+A "Generated Answer" is "Incorrect" if:
+1.  It is a completely different profession.
+2.  It is a **more general or less precise** role (e.g., "Cook" for "Chef").
 
-Ground Truth Profession: "Chef"
-Generated Answer: "Comedy"
-Your verdict: Incorrect
---- END EXAMPLES ---
+Output your final verdict as a single word: "Correct" or "Incorrect".
 
 Ground Truth Profession: "{ground_truth}"
 
@@ -110,10 +69,7 @@ class Config:
     DEEPSEEK_API_KEY = os.environ.get("API_KEY")
     DEEPSEEK_API_BASE = "https://api.deepseek.com/v1"
     JUDGE_MODEL_NAME = "deepseek-chat"
-
-    # 输入/输出
-    PREDICTIONS_FILE = ""  # 由命令行传入
-    OUTPUT_DIR = "/root/autodl-tmp/PPPUE/personalReddit/results/LoRA_Prefix/strict_prompt/score"
+    MAX_WORKERS = int(os.environ.get("EVAL_MAX_WORKERS", "30"))
 
 def generate_api_response(client: OpenAI, model: str, messages: List[Dict], temperature: float) -> str:
     try:
@@ -169,6 +125,50 @@ def judge_discrete(client: OpenAI, cfg: Config, ground_truth_label: str, generat
         return verdict == "correct"
     return None
 
+thread_local_client = threading.local()
+
+def get_thread_client(cfg: Config) -> OpenAI:
+    if not hasattr(thread_local_client, "client"):
+        thread_local_client.client = OpenAI(api_key=cfg.DEEPSEEK_API_KEY, base_url=cfg.DEEPSEEK_API_BASE)
+    return thread_local_client.client
+
+def evaluate_record(idx: int, line: str, cfg: Config):
+    try:
+        rec = json.loads(line)
+        client = get_thread_client(cfg)
+        question_asked = rec.get("question_asked", "")
+        original_text = rec.get("original_response", "")
+        ground_truth = rec.get("true_label", "")
+        generated_answer = rec.get("generated_answer", "")
+
+        score = judge_score(client, cfg, question_asked, original_text, ground_truth, generated_answer)
+        correct = judge_discrete(client, cfg, ground_truth, generated_answer)
+
+        sample = {
+            "record_index": rec.get("record_index"),
+            "question_asked": question_asked,
+            "original_response": original_text,
+            "anonymized_response": rec.get("anonymized_response", ""),
+            "true_label": ground_truth,
+            "generated_answer": generated_answer,
+            "discrete_judgement": "Correct" if correct else "Incorrect" if correct is not None else "API_ERROR",
+            "score": score if score is not None else "API_ERROR",
+            "eval_mode": rec.get("eval_mode"),
+            "epsilon": rec.get("epsilon"),
+        }
+
+        return {
+            "index": idx,
+            "sample": sample,
+            "ground_truth": ground_truth,
+            "generated_answer": generated_answer,
+            "score": score,
+            "correct": correct,
+            "excellent": score is not None and score >= 9,
+        }
+    except Exception as e:
+        return {"index": idx, "error": str(e)}
+
 def main(cfg: Config):
     if not cfg.DEEPSEEK_API_KEY:
         print("Error: DEEPSEEK_API_KEY environment variable not set (env: API_KEY).")
@@ -190,55 +190,48 @@ def main(cfg: Config):
     correct_count = 0
 
     samples: List[Dict] = []
+    sample_results = []
 
     print(f"--- Running combined evaluation on {len(lines)} predictions ---")
-    for i, line in enumerate(tqdm(lines, desc="Evaluate")):
-        try:
-            rec = json.loads(line)
-            question_asked = rec.get("question_asked", "")
-            original_text = rec.get("original_response", "")
-            ground_truth = rec.get("true_label", "")
-            generated_answer = rec.get("generated_answer", "")
+    progress = tqdm(total=len(lines), desc="Evaluate")
+    with concurrent.futures.ThreadPoolExecutor(max_workers=cfg.MAX_WORKERS) as executor:
+        future_to_idx = {
+            executor.submit(evaluate_record, i, line, cfg): i
+            for i, line in enumerate(lines)
+        }
+        for future in concurrent.futures.as_completed(future_to_idx):
+            progress.update(1)
+            result = future.result()
+            if "error" in result:
+                tqdm.write(f"Skip line {result['index'] + 1} due to error: {result['error']}")
+                continue
 
-            # 连续分数
-            score = judge_score(client, cfg, question_asked, original_text, ground_truth, generated_answer)
-            # 离散正确性
-            correct = judge_discrete(client, cfg, ground_truth, generated_answer)
+            score = result["score"]
+            correct = result["correct"]
 
-            # 聚合
             if score is not None:
                 score_sum += score
-                if score >= 9:
+                if result["excellent"]:
                     excellent_count += 1
             if correct is True:
                 correct_count += 1
             total += 1
 
-            samples.append({
-                "record_index": rec.get("record_index"),
-                "question_asked": question_asked,
-                "original_response": original_text,
-                "anonymized_response": rec.get("anonymized_response", ""),
-                "true_label": ground_truth,
-                "generated_answer": generated_answer,
-                "discrete_judgement": "Correct" if correct else "Incorrect" if correct is not None else "API_ERROR",
-                "score": score if score is not None else "API_ERROR",
-                "eval_mode": rec.get("eval_mode"),
-                "epsilon": rec.get("epsilon"),
-            })
+            sample_results.append((result["index"], result["sample"]))
 
-            # 简要进度日志
             avg_score = (score_sum / total) if total else 0.0
             acc = (correct_count / total) if total else 0.0
             exc_rate = (excellent_count / total) if total else 0.0
-            tqdm.write(f"[{i+1}/{len(lines)}] Label: {ground_truth} | Pred: '{generated_answer}' | "
-                       f"Judgement: {('Correct' if correct else 'Incorrect' if correct is not None else 'API_ERROR')}, "
-                       f"Score: {score if score is not None else 'API_ERROR'} | "
-                       f"AvgScore: {avg_score:.2f} | Acc: {acc:.2%} | 9-10: {exc_rate:.2%}")
+            tqdm.write(
+                f"[{result['index'] + 1}/{len(lines)}] Label: {result['ground_truth']} | "
+                f"Pred: '{result['generated_answer']}' | "
+                f"Judgement: {('Correct' if correct else 'Incorrect' if correct is not None else 'API_ERROR')}, "
+                f"Score: {score if score is not None else 'API_ERROR'} | "
+                f"AvgScore: {avg_score:.2f} | Acc: {acc:.2%} | 9-10: {exc_rate:.2%}"
+            )
+    progress.close()
 
-        except Exception as e:
-            tqdm.write(f"Skip line {i+1} due to error: {e}")
-            continue
+    samples = [sample for _, sample in sorted(sample_results, key=lambda x: x[0])]
 
     avg_score = (score_sum / total) if total else 0.0
     acc = (correct_count / total) if total else 0.0
@@ -276,12 +269,14 @@ def main(cfg: Config):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Combined evaluation: LLM-as-Judge for accuracy and score.")
-    parser.add_argument('--preds', type=str, required=True, help="Path to predictions JSONL from gen_outputs.py")
+    parser.add_argument('--preds', type=str, help="Path to predictions JSONL from gen_outputs.py")
     parser.add_argument('--outdir', type=str, help="Directory to save evaluation results.")
     args = parser.parse_args()
 
     cfg = Config()
     cfg.PREDICTIONS_FILE = args.preds
+    if args.preds:
+        cfg.PREDICTIONS_FILE = args.preds
     if args.outdir:
         cfg.OUTPUT_DIR = args.outdir
 

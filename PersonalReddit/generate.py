@@ -18,17 +18,17 @@ class Config:
     LLM_DEVICE = "cuda:0"
 
     # 模型路径
-    LLM_PATH = ""
-    UEM_PATH = ""
-    CKPT_PATH = ""
+    LLM_PATH = "/root/autodl-tmp/huggingface/hub/models--meta-llama--Meta-Llama-3-8B-Instruct/snapshots/8afb486c1db24fe5011ec46dfbe5b5dccdb575c2"
+    UEM_PATH = "/root/autodl-tmp/huggingface/hub/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09"
+    CKPT_PATH = "/root/autodl-tmp/PPPUE/PersonalReddit/ckpt/prefix_lora/alignment/best_model"
 
     # 数据与输出
-    INPUT_DATA_FILE = ""
-    OUTPUT_DIR = ""
+    INPUT_DATA_FILE = "/root/autodl-tmp/PPPUE/PersonalReddit/benchmark/test/local_anony_test_with_local_loss.jsonl"
+    OUTPUT_DIR = "/root/autodl-tmp/PPPUE/PersonalReddit/results/alignment/output"
 
     # 评估/生成模式
     EVAL_MODE = "DP"  # Options: BASELINE, STANDARD, CLIPPING_ONLY, DP, ORIGINAL_TEXT_BASELINE
-    EPSILON = 1.0  # 用于 DP 模式的隐私预算
+    EPSILON = 5.0  # 用于 DP 模式的隐私预算
     CLIPPING_NORM = 1.0
     PREFIX_LENGTH = 5
     LIMIT: Optional[int] = None

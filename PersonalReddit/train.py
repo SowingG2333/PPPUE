@@ -10,14 +10,15 @@ from tqdm import tqdm # 进度条显示
 from transformers import AutoModel, AutoTokenizer, AutoModelForCausalLM, XLMRobertaTokenizer # 预训练模型和分词器
 from peft import LoraConfig, get_peft_model, TaskType  # LoRA 相关
 from typing import List, Dict, Tuple # 类型提示
+import wandb # --- WANDB ---: 导入 wandb
 
 # --- CONFIGURATION VARIABLES --- #
-LLM_MODEL_PATH = ""
-UEM_MODEL_PATH = ""
+LLM_MODEL_PATH = "/root/autodl-tmp/huggingface/hub/models--meta-llama--Meta-Llama-3-8B-Instruct/snapshots/8afb486c1db24fe5011ec46dfbe5b5dccdb575c2"
+UEM_MODEL_PATH = "/root/autodl-tmp/huggingface/hub/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09"
 
-TRAIN_DATA_FILE = ""
-VAL_DATA_FILE = ""
-CKPT_DIR = ""
+TRAIN_DATA_FILE = "/root/autodl-tmp/PPPUE/PersonalReddit/benchmark/train/seed_42/train_split.jsonl"
+VAL_DATA_FILE = "/root/autodl-tmp/PPPUE/PersonalReddit/benchmark/train/seed_42/val_split.jsonl"
+CKPT_DIR = "/root/autodl-tmp/PPPUE/PersonalReddit/ckpt/prefix_lora/alignment"
 
 # 训练超参数
 LEARNING_RATE_UEM = 1e-5  # UEM 和投影层的学习率
@@ -36,6 +37,11 @@ LORA_R = 16 # LoRA 秩
 LORA_ALPHA = 32 # LoRA 缩放因子
 LORA_DROPOUT = 0.1 # LoRA dropout 率
 LORA_TARGET_MODULES = ["q_proj", "k_proj", "v_proj", "o_proj"] # 目标模块列表
+
+# --- WANDB ---: W&B 配置
+WANDB_PROJECT = "Prefix_LoRA_Alignment_Reddit" # (可以自定义项目名称)
+WANDB_RUN_NAME = f"lora_r{LORA_R}_lr{LEARNING_RATE_LORA}_prefix{PREFIX_LENGTH}_bs{BATCH_SIZE}" # (自定义运行名称)
+
 
 # ----- Reddit 系统提示词 -----
 REDDIT_PROMPT_SYSTEM = """
@@ -275,6 +281,37 @@ def evaluate(model, data_loader):
 def main():
     """主函数"""
     os.makedirs(CKPT_DIR, exist_ok=True)
+    
+    # --- WANDB ---: 收集所有超参数用于 wandb.init
+    config = {
+        "llm_model_path": LLM_MODEL_PATH,
+        "uem_model_path": UEM_MODEL_PATH,
+        "train_data_file": TRAIN_DATA_FILE,
+        "val_data_file": VAL_DATA_FILE,
+        "ckpt_dir": CKPT_DIR,
+        "learning_rate_uem": LEARNING_RATE_UEM,
+        "learning_rate_lora": LEARNING_RATE_LORA,
+        "epochs": EPOCHS,
+        "batch_size": BATCH_SIZE,
+        "prefix_length": PREFIX_LENGTH,
+        "uem_device": UEM_DEVICE,
+        "llm_device": LLM_DEVICE,
+        "clipping_norm": CLIPPING_NORM,
+        "distillation_temp": DISTILLATION_TEMP,
+        "max_gen_tokens": MAX_GEN_TOKENS,
+        "lora_r": LORA_R,
+        "lora_alpha": LORA_ALPHA,
+        "lora_dropout": LORA_DROPOUT,
+        "lora_target_modules": LORA_TARGET_MODULES,
+    }
+
+    # --- WANDB ---: 初始化
+    wandb.init(
+        project=WANDB_PROJECT,
+        name=WANDB_RUN_NAME,
+        config=config,
+        reinit=True
+    )
 
     print(f"Using UEM_DEVICE: {UEM_DEVICE} and LLM_DEVICE: {LLM_DEVICE}")
     print(f"Checkpoints will be saved to: {CKPT_DIR}")
@@ -330,6 +367,10 @@ def main():
     model.uem.to(UEM_DEVICE)
     model.projection_layer.to(UEM_DEVICE)
     
+    # --- WANDB ---: 监控模型梯度和参数
+    # (log="all" 会记录梯度和参数, log_freq=100 表示每 100 步记录一次)
+    wandb.watch(model, log="all", log_freq=100)
+    
     # 优化器:为不同模块设置不同的学习率
     optimizer = AdamW([
         {
@@ -343,7 +384,7 @@ def main():
             'weight_decay': 0.01
         },
         {
-            'params': model.llm_student.parameters(),
+            'params': filter(lambda p: p.requires_grad, model.llm_student.parameters()), # --- WANDB 修正 ---: 确保只优化可训练参数
             'lr': LEARNING_RATE_LORA,
             'weight_decay': 0.01
         }
@@ -351,6 +392,7 @@ def main():
     
     scheduler = CosineAnnealingLR(optimizer, T_max=EPOCHS, eta_min=1e-7)
     best_val_loss = float('inf')
+    global_step = 0 # --- WANDB ---: 初始化全局步数
 
     print(f"\n--- Starting Knowledge Distillation Training with LoRA ---")
     print(f"UEM Learning Rate: {LEARNING_RATE_UEM}")
@@ -385,6 +427,10 @@ def main():
             torch.nn.utils.clip_grad_norm_(model.parameters(), CLIPPING_NORM)
             optimizer.step()
             
+            # --- WANDB ---: 记录每一步的训练损失
+            wandb.log({"step_train_loss": loss.item(), "global_step": global_step})
+            global_step += 1
+            
             del logits_teacher, target_ids
             torch.cuda.empty_cache()
 
@@ -395,7 +441,19 @@ def main():
         scheduler.step()
         
         print(f"Epoch {epoch + 1} | Train Loss: {avg_train_loss:.6f} | Val Loss: {val_loss:.6f}")
-        print(f"Current LR - UEM: {optimizer.param_groups[0]['lr']:.2e}, LoRA: {optimizer.param_groups[2]['lr']:.2e}")
+        current_lr_uem = optimizer.param_groups[0]['lr']
+        current_lr_lora = optimizer.param_groups[2]['lr']
+        print(f"Current LR - UEM: {current_lr_uem:.2e}, LoRA: {current_lr_lora:.2e}")
+
+        # --- WANDB ---: 记录每一轮的指标
+        wandb.log({
+            "epoch": epoch + 1,
+            "train_loss": avg_train_loss,
+            "val_loss": val_loss,
+            "lr_uem": current_lr_uem,
+            "lr_lora": current_lr_lora,
+            "global_step": global_step # 确保 epoch 指标与 global_step 关联
+        })
 
         # 保存最佳模型 (解耦保存)
         if val_loss < best_val_loss:
@@ -417,7 +475,26 @@ def main():
             
             print(f"Saved decoupled model components to {epoch_ckpt_dir}")
 
+            # --- WANDB ---: 将最佳模型保存为 Artifact
+            best_model_artifact = wandb.Artifact(
+                f"best_model_{wandb.run.id}", 
+                type="model",
+                metadata={"epoch": epoch + 1, "val_loss": best_val_loss}
+            )
+            # 添加 LoRA 适配器目录
+            best_model_artifact.add_dir(lora_path, name="lora_adapters")
+            # 添加 UEM 和投影层权重文件
+            best_model_artifact.add_file(other_weights_path, name="uem_projection.pt")
+            # 记录 artifact
+            wandb.log_artifact(best_model_artifact, aliases=["best"]) # 标记为 "best"
+            print(f"Saved model components as wandb artifact 'best'.")
+            # -----------------------------------------------
+
     print("Training complete.")
+    
+    # --- WANDB ---: 结束运行
+    wandb.finish()
+
 
 if __name__ == "__main__":
     main()
