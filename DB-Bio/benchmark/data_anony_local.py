@@ -26,7 +26,7 @@ Your goal is to rewrite [Biography Text] according to the [Leaked Attributes and
 [Leaked Attributes and Attacker Guesses]:
 {feedback}
 
-Rewrite the text following all instructions. Output ONLY the anonymized text.
+Now, provide ONLY your new, single, anonymized version of the text. Do not add any extra commentary or preamble.
 """
 
 PROMPT_ATTACKER_SYSTEM = """
@@ -169,7 +169,7 @@ def extract_first_json_object(text: str) -> Optional[Dict[str, Any]]:
 def build_prompt_chat(tokenizer, system_content: str, user_content: str) -> str:
     """使用 tokenizer 的 apply_chat_template 构建 Prompt"""
     messages = [
-        {"role": "system", "content": system_content.strip()},
+        {"role": "system", "content": system_content},
         {"role": "user", "content": user_content}
     ]
     return tokenizer.apply_chat_template(
@@ -236,64 +236,52 @@ def call_attacker(pipe, tokenizer, anonymized_text: str, terminator_ids: List[in
 
 
 # LLM Judge 函数被移除，使用 Python 确定性逻辑 compare_profiles_local。
-
-def compare_profiles_local(true_profile: Dict[str, Any], guessed_profile: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """
-    使用确定性的 Python 逻辑比较 profiles，返回泄露列表。
-    与 data_anony_local.py 和待迁移代码中的逻辑合并/统一。
-    """
+def compare_profiles(true_profile: Dict[str, Any], guessed_profile: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """按键名比较属性，返回泄露列表。"""
     leaked_attributes: List[Dict[str, Any]] = []
 
     def _append(key: str, guess: Any, true: Any) -> None:
         leaked_attributes.append({"key": key, "guess": guess, "true": true})
 
-    # 1) 年龄或出生年份容差
-    # 优先使用 birth_year，因为它是传记任务的主要属性
+    def _is_unknown(value: Any) -> bool:
+        if value is None:
+            return True
+        if isinstance(value, str):
+            return value.strip().lower() in {"", "null", "none", "n/a", "not specified", "not mentioned", "unknown"}
+        return False
+
+    def _normalize(text: Any) -> Optional[str]:
+        if not isinstance(text, str):
+            return None
+        if _is_unknown(text):
+            return None
+        return re.sub(r"\s+", " ", text.strip().lower())
+
+    # birth_year 容差匹配（±3 年）
     true_birth_year = true_profile.get("birth_year")
     guessed_birth_year = guessed_profile.get("birth_year")
     if isinstance(true_birth_year, int) and isinstance(guessed_birth_year, int):
-        # 待迁移代码的容差是 +/- 2 年
-        if abs(true_birth_year - guessed_birth_year) <= 2:
+        if abs(true_birth_year - guessed_birth_year) <= 3:
             _append("birth_year", guessed_birth_year, true_birth_year)
-    
-    # 2) 简单字段 (精确匹配，忽略大小写/空白)
-    # name, sex
-    simple_keys = ["sex", "name"]
-    for key in simple_keys:
-        true_val = true_profile.get(key)
-        guess_val = guessed_profile.get(key)
-        if isinstance(true_val, str) and isinstance(guess_val, str) and true_val and guess_val:
-            if true_val.strip().lower() == guess_val.strip().lower():
-                _append(key, guess_val, true_val)
 
-    # 3) 复杂字段 (子集/子字符串匹配)
-    complex_keys = [
-        "birth_city_country",
-        "education_level",
-        "occupation",
-        "income_level",
-        # 兼容旧代码的 key，以防数据集中有
-        "city_country",
-        "education", 
-        "relationship_status", # relationship_status 在待迁移代码中是简单匹配，这里作为复杂字段的子集/超集匹配也可以
-    ]
-    for key in complex_keys:
-        true_val = true_profile.get(key)
-        guess_val = guessed_profile.get(key)
-        # 必须是字符串且非空
-        if isinstance(true_val, str) and isinstance(guess_val, str) and true_val and guess_val:
-            true_s = true_val.strip().lower()
-            guess_s = guess_val.strip().lower()
+    # 简单精确字段（忽略大小写与多余空白）
+    for key in ["name", "sex"]:
+        true_val = _normalize(true_profile.get(key))
+        guess_val = _normalize(guessed_profile.get(key))
+        if true_val and guess_val and true_val == guess_val:
+            _append(key, guessed_profile.get(key), true_profile.get(key))
 
-            # 过滤掉无意义的短猜测
-            if len(guess_s) < 3:
-                continue
-                
-            # 核心逻辑：猜测是真实值的一部分 或 真实值是猜测的一部分
-            if (guess_s in true_s) or (true_s in guess_s):
-                _append(key, guess_val, true_val)
+    # 子串/包含字段
+    for key in ["birth_city_country", "education_level", "occupation", "income_level"]:
+        true_val = _normalize(true_profile.get(key))
+        guess_val = _normalize(guessed_profile.get(key))
+        if not true_val or not guess_val:
+            continue
+        if len(guess_val) < 3:
+            continue
+        if guess_val in true_val or true_val in guess_val:
+            _append(key, guessed_profile.get(key), true_profile.get(key))
 
-    logging.debug(f"Rule-based comparison complete. Leaked: {leaked_attributes}")
     return leaked_attributes
 
 
@@ -359,7 +347,7 @@ def adversarial_anonymization(
 
         # 3) 评判泄露 (使用本地 Python 规则)
         logging.info(f"[Record {record_id}][Iter {i+1}] Calling Judge (Local Rules)...")
-        leaked_results = compare_profiles_local(ground_truth_pii, attacker_guess)
+        leaked_results = compare_profiles(ground_truth_pii, attacker_guess)
 
         if not leaked_results:
             logging.info(f"[Record {record_id}][Iter {i+1}] Success! No attributes leaked.")
@@ -378,7 +366,7 @@ def adversarial_anonymization(
             feedback_items = [f"- {k}: guessed {v}" for k, v in leaked_feedback.items()]
             feedback = (
                 "The attacker correctly inferred the following attributes from your rewritten text:\n"
-                f"{'\n'.join(feedback_items)}\n"
+                f"{chr(10).join(feedback_items)}\n"
                 "Please generalize the text further to hide these specific clues."
             )
             logging.info(f"[Record {record_id}][Iter {i+1}] Failed. Leaked: {leaked_attributes_str}")

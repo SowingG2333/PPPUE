@@ -16,6 +16,7 @@ import re
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # --- Client 初始化 ---
+client: Optional[OpenAI] = None
 try:
     client = OpenAI(
         api_key=os.environ.get("API_KEY"),
@@ -24,7 +25,7 @@ try:
     client.models.list() 
 except Exception as e:
     print("Warning: Initial client setup failed. Ensure API_KEY env var is set or provided via --api_key.")
-    pass
+    client = None
 
 LLM_MODEL = "deepseek-chat"
 GLOBAL_CLIENT = client
@@ -45,7 +46,7 @@ Your goal is to rewrite [Biography Text] according to the [Leaked Attributes and
 [Leaked Attributes and Attacker Guesses]:
 {feedback}
 
-Rewrite the text following all instructions. Output ONLY the anonymized text.
+Now, provide ONLY your new, single, anonymized version of the text. Do not add any extra commentary or preamble.
 """
 
 PROMPT_ATTACKER_SYSTEM = """
@@ -62,27 +63,6 @@ Input:
 {anonymized_text}
 
 Respond ONLY with a single, valid JSON object.
-"""
-
-PROMPT_JUDGE_SYSTEM = """
-You are a precise evaluation expert comparing an AI's guess against a ground truth value for a specific attribute, based on the original context.
-
-Instructions:
-1) Compare the [Attacker's Guess] to the [Ground Truth Value] for the given [Attribute Name].
-2) Use the [Original Biography Text] for context if needed (e.g., occupation or education nuances).
-3) Evaluation Criteria:
-    - "Correct": exact match, a clear synonym, or a more specific but factually consistent identification based on the original text. Minor capitalization/spelling variants are acceptable. For birth_year, allow +/- 2 years if the text is vague. For income_level, treat "unknown" as incorrect if ground truth is known. For name, minor punctuation or spacing differences may still be "Correct" if clearly referring to the same person.
-    - "Incorrect": wrong, too general vs specific mismatch that changes meaning, or "unknown" when the ground truth is a specific value.
-4) Output only "Correct" or "Incorrect".
-"""
-PROMPT_JUDGE_USER = """
-[Attribute Name]: {attribute_name}
-[Ground Truth Value]: {ground_truth_value}
-[Attacker's Guess]: {attacker_guess}
-[Original Biography Text (for context)]:
-{original_text}
-
-Is the [Attacker's Guess] a correct identification of the [Ground Truth Value] for the given attribute, based on the criteria? Respond ONLY with "Correct" or "Incorrect".
 """
 
 # --- 辅助函数 ---
@@ -115,7 +95,10 @@ def call_llm(
     retry_delay: int = 5,
     request_json: bool = False
 ) -> Optional[str]:
-    """同步 LLM 调用封装，带重试机制。"""
+    """调用 LLM API，带重试机制。"""
+    if client is None:
+        logging.error(f"[{purpose}] OpenAI client is not initialized.")
+        return None
     for attempt in range(max_retries):
         try:
             params = {
@@ -150,61 +133,6 @@ def call_llm(
                 logging.error(f"[{purpose}] Max retries reached for API call.")
                 return None
     return None
-
-def call_judge_llm(
-    client: OpenAI,
-    model: str,
-    attribute_name: str,
-    ground_truth_value: Any,
-    attacker_guess: Any,
-    original_text: str
-) -> str:
-    """调用 Judge LLM 来评估攻击者的猜测，返回 'Correct', 'Incorrect', 或 'Error'。"""
-    
-    # 格式化输入
-    gt_str = str(ground_truth_value) if ground_truth_value is not None else "null"
-    
-    # 将 None 猜测值统一处理为 'null' 字符串，用于在 Prompt 中描述
-    guess_str_for_prompt = "null"
-    if attacker_guess is not None:
-        guess_str_for_prompt = str(attacker_guess)
-
-    # 预设规则 1：如果 Ground Truth 是 None (无需保护的属性)
-    if ground_truth_value is None:
-        # 只要攻击者没有猜到非 null 值，就视为正确（即没有泄露不需要保护的信息）
-        guess_is_unknown = (attacker_guess is None or str(attacker_guess).strip().lower() in ['null', 'none', 'n/a', 'not specified', 'not mentioned', 'unknown', ''])
-        return "Correct" if guess_is_unknown else "Incorrect"
-    
-    # 预设规则 2：如果 Ground Truth 有值，但攻击者猜了 null/unknown
-    guess_is_unknown_but_gt_is_known = (
-        attacker_guess is None or str(attacker_guess).strip().lower() in ['null', 'none', 'n/a', 'not specified', 'not mentioned', 'unknown', '']
-    )
-    if guess_is_unknown_but_gt_is_known:
-        return "Incorrect" # 即使没猜到，LLM也未达到保护目标
-
-    user_prompt = PROMPT_JUDGE_USER.format(
-        attribute_name=attribute_name,
-        ground_truth_value=gt_str,
-        attacker_guess=guess_str_for_prompt,
-        original_text=original_text
-    )
-    messages = [
-        {"role": "system", "content": PROMPT_JUDGE_SYSTEM},
-        {"role": "user", "content": user_prompt}
-    ]
-    
-    # Judge LLM 的 temperature 应为 0.0 或 0.1，并期望简洁输出
-    verdict = call_llm(GLOBAL_CLIENT, model, messages, f"Judge ({attribute_name})", max_retries=3, retry_delay=5)
-
-    verdict_lower = verdict.lower().strip().rstrip('.,!?"\'') if verdict else ""
-    if verdict_lower == "correct":
-        return "Correct"
-    elif verdict_lower == "incorrect":
-        return "Incorrect"
-    else:
-        logging.warning(f"[Judge - {attribute_name}]: Unexpected verdict '{verdict}'. Defaulting to 'Error'.")
-        return "Error"
-
 
 def compare_profiles(true_profile: Dict[str, Any], guessed_profile: Dict[str, Any]) -> List[Dict[str, Any]]:
     """按键名比较属性，返回泄露列表。"""
@@ -260,9 +188,20 @@ def adversarial_anonymization_biography(
     pii_dict: Dict[str, Any],
     max_iterations: int = 5,
     model: str = LLM_MODEL,
-    client: OpenAI = GLOBAL_CLIENT
+    client: Optional[OpenAI] = None
 ) -> Tuple[str, Dict[str, Any]]:
-    '''执行对抗性匿名化过程，返回最终的匿名化响应和元数据。'''
+    """对传记文本进行对抗性匿名化。"""
+    if client is None:
+        client = GLOBAL_CLIENT
+    if client is None:
+        meta = {
+            "status": "api_error",
+            "error": "client_not_initialized",
+            "iterations_used": 0,
+            "final_leaked_attributes": [],
+            "final_attacker_guess": {}
+        }
+        return original_text, meta
     
     # 只关注非 None 的 PII 属性进行匿名化和评测
     ground_truth_pii: Dict[str, Any] = {k: v for k, v in pii_dict.items() if v is not None}
@@ -344,7 +283,7 @@ def adversarial_anonymization_biography(
             feedback_items = [f"- {k}: guessed {v}" for k, v in leaked_feedback.items()]
             feedback = (
                 "The attacker correctly inferred the following attributes from your rewritten text:\n"
-                f"{'\n'.join(feedback_items)}\n"
+                f"{chr(10).join(feedback_items)}\n"
                 "Please generalize the text further to hide these specific clues."
             )
             meta["final_leaked_attributes"] = leaked_attributes
@@ -400,8 +339,9 @@ def process_record(data: Dict[str, Any], max_iterations: int) -> Dict[str, Any]:
     return data
 
 # --- main 函数 (保持上传代码中的结构，兼容 API Key 覆盖) ---
-
 def main():
+    global GLOBAL_CLIENT
+    global LLM_MODEL
     parser = argparse.ArgumentParser(description="Adversarially anonymize biographies in a JSONL file in parallel using API.")
     parser.add_argument("--max_workers", type=int, default=10, help="Maximum number of parallel threads to use.")
     parser.add_argument("--input_file", type=str, required=True, help="Path to the input JSONL file (e.g., db_bio_with_attributes.jsonl).")
@@ -416,9 +356,6 @@ def main():
     args = parser.parse_args()
 
     # --- Client/Model 初始化 ---
-    global GLOBAL_CLIENT
-    global LLM_MODEL
-    
     if args.model:
         LLM_MODEL = args.model 
         

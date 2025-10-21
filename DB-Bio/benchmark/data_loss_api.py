@@ -66,7 +66,7 @@ def process_record(data: Dict[str, Any], model: str) -> Dict[str, Any]:
     处理单条记录:生成信息损失描述并将其添加到数据字典中。
     """
     original_biography = data.get('text')
-    anonymized_biography = data.get('anonymized_biography')
+    anonymized_biography = data.get('anonymized_text')
     
     if not original_biography or not anonymized_biography:
         data['loss_description_sentence'] = "Error: Missing original or anonymized biography."
