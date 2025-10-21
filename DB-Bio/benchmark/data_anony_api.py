@@ -2,15 +2,15 @@ import os
 import json
 import argparse
 import sys
-import time # 用于同步等待/重试
-from typing import List, Dict, Any, Tuple, Optional
+import time
+from typing import List, Dict, Any, Tuple, Optional, Set
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from openai import OpenAI
 
 from tqdm import tqdm
 import logging
-import re # 用于 JSON 响应的清理
+import re
 
 # --- 配置日志记录 ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -206,6 +206,55 @@ def call_judge_llm(
         return "Error"
 
 
+def compare_profiles(true_profile: Dict[str, Any], guessed_profile: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """按键名比较属性，返回泄露列表。"""
+    leaked_attributes: List[Dict[str, Any]] = []
+
+    def _append(key: str, guess: Any, true: Any) -> None:
+        leaked_attributes.append({"key": key, "guess": guess, "true": true})
+
+    def _is_unknown(value: Any) -> bool:
+        if value is None:
+            return True
+        if isinstance(value, str):
+            return value.strip().lower() in {"", "null", "none", "n/a", "not specified", "not mentioned", "unknown"}
+        return False
+
+    def _normalize(text: Any) -> Optional[str]:
+        if not isinstance(text, str):
+            return None
+        if _is_unknown(text):
+            return None
+        return re.sub(r"\s+", " ", text.strip().lower())
+
+    # birth_year 容差匹配（±3 年）
+    true_birth_year = true_profile.get("birth_year")
+    guessed_birth_year = guessed_profile.get("birth_year")
+    if isinstance(true_birth_year, int) and isinstance(guessed_birth_year, int):
+        if abs(true_birth_year - guessed_birth_year) <= 3:
+            _append("birth_year", guessed_birth_year, true_birth_year)
+
+    # 简单精确字段（忽略大小写与多余空白）
+    for key in ["name", "sex"]:
+        true_val = _normalize(true_profile.get(key))
+        guess_val = _normalize(guessed_profile.get(key))
+        if true_val and guess_val and true_val == guess_val:
+            _append(key, guessed_profile.get(key), true_profile.get(key))
+
+    # 子串/包含字段
+    for key in ["birth_city_country", "education_level", "occupation", "income_level"]:
+        true_val = _normalize(true_profile.get(key))
+        guess_val = _normalize(guessed_profile.get(key))
+        if not true_val or not guess_val:
+            continue
+        if len(guess_val) < 3:
+            continue
+        if guess_val in true_val or true_val in guess_val:
+            _append(key, guessed_profile.get(key), true_profile.get(key))
+
+    return leaked_attributes
+
+
 def adversarial_anonymization_biography(
     original_text: str,
     pii_dict: Dict[str, Any],
@@ -274,40 +323,24 @@ def adversarial_anonymization_biography(
             else:
                  raise ValueError("Attacker LLM returned empty or None JSON response.")
         except Exception as e:
-            # 如果 Attacker 无法生成有效 JSON，则下一轮的 Feedback 告知 Anonymizer 保持不变
             logging.error(f"Attacker JSON decode/parse error: {e}")
             feedback = f"The attacker failed to produce a valid JSON profile. Error: {e}"
-            continue # 跳过本轮评判，进入下一轮匿名
+            continue
 
-        # 3) 评判泄露 (Judge) - 使用 LLM 裁判
-        leaked_attributes: List[str] = []
-        judge_errors: List[str] = []
-        leaked_feedback: Dict[str, Any] = {}
-        
-        # 只对 ground_truth_pii 中有值的属性进行评测
-        for attr_name in ground_truth_pii.keys():
-            gt_value = ground_truth_pii.get(attr_name)
-            guess = attacker_guess.get(attr_name)
-            
-            # 使用 LLM Judge 进行判断
-            verdict = call_judge_llm(client, model, attr_name, gt_value, guess, original_text)
-            
-            if verdict == "Correct":
-                # 记录泄露的属性和攻击者的猜测值
-                leaked_attributes.append(f"{attr_name} (guessed: '{guess}', true: '{gt_value}')")
-                leaked_feedback[attr_name] = guess
-            elif verdict == "Error":
-                judge_errors.append(attr_name)
+        leaked_results = compare_profiles(ground_truth_pii, attacker_guess)
 
-        if judge_errors:
-            meta["status"] = "judge_error"; meta["error"] = f"judge_failed_for: {judge_errors}"
-            return current_anonymized_text, meta
-
-        if not leaked_attributes:
+        if not leaked_results:
             meta["status"] = "success"
             return current_anonymized_text, meta
         else:
-            # 构造下一轮的反馈信息
+            leaked_attributes = []
+            leaked_feedback: Dict[str, Any] = {}
+            for item in leaked_results:
+                leaked_attributes.append(
+                    f"{item['key']} (guessed: '{item['guess']}', true: '{item['true']}')"
+                )
+                leaked_feedback[item["key"]] = item["guess"]
+
             feedback_items = [f"- {k}: guessed {v}" for k, v in leaked_feedback.items()]
             feedback = (
                 "The attacker correctly inferred the following attributes from your rewritten text:\n"
@@ -320,7 +353,6 @@ def adversarial_anonymization_biography(
     return current_anonymized_text, meta
 
 # --- 重构后的 process_record 函数 ---
-
 def process_record(data: Dict[str, Any], max_iterations: int) -> Dict[str, Any]:
     """
     辅助函数，用于处理单条记录。

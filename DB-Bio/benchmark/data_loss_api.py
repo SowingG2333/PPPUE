@@ -24,41 +24,21 @@ except Exception as e:
     sys.exit(1)
 
 # --- Prompt模板 ---
-PROMPT_TEMPLATE = """
-You are an AI assistant specializing in biographical text analysis.
+PROMPT_LOSS_SYSTEM = """
+You are an expert in analyzing text and extracting relevant information about occupations.
+"""
+PROMPT_LOSS_SYSTEM = """
+Compare the [Original Biography] and [Anonymized Biography]. Your goal is to create a concise sentence describing the information that was lost which is useful for guessing the person's occupation described in the biography.
 
-Compare the [Original Biography] and [Anonymized Biography]. Your goal is to create a very concise note describing only the information that was lost and is useful for identifying the person's profession or occupation.
-
-Follow these rules:
-
-- Focus on Professional Identity: Only extract clues about specific job titles, professional achievements, institutional affiliations, historical events related to their career, or technical expertise.
-
-- Ignore Irrelevant Details: Do not include lost information about birth/death dates, personal relationships, hobbies unrelated to their profession, or generic location names.
-
-- Handle "No Clues": If no profession-relevant information was lost, simply write "No occupation-relevant information was lost."
-
-Example 1 (Relevant clues):
-[Original Biography]: "John Smith (1850-1920) was a British engineer who designed the Thames Bridge and worked at Imperial College London."
-[Anonymized Biography]: "An engineer from the 19th century designed a major bridge and worked at a prestigious university."
-Your Output: The person designed the Thames Bridge and worked at Imperial College London.
-
-Example 2 (Filtering is needed):
-[Original Biography]: "Maria Garcia won three Olympic gold medals in tennis between 1990-1998. She later married Carlos and had two children."
-[Anonymized Biography]: "An athlete won multiple Olympic medals in a racquet sport during the 1990s."
-Your Output: The person won three Olympic gold medals in tennis between 1990-1998.
-
-Example 3 (No relevant clues):
-[Original Biography]: "Born in London on March 15, 1965, the individual later moved to Paris where they lived with their spouse."
-[Anonymized Biography]: "Born in a European capital in the mid-1960s, the person later relocated to another major city."
-Your Output: No occupation-relevant information was lost.
+If no occupation-relevant information was lost, simply write "No occupation-relevant information was lost."
 
 [Original Biography]:
-{original_text}
+{original_biography}
 
 [Anonymized Biography]:
-{anonymized_text}
+{anonymized_biography}
 
-Your Output:
+Now, provide the sentence start with "The person...". Do not add any explanations and additional commentary.
 """
 
 # --- 辅助函数 ---
@@ -68,6 +48,7 @@ def generate_api_response(prompt_text: str, model: str, temperature: float, max_
         completion = client.chat.completions.create(
             model=model,
             messages=[
+                {"role": "system", "content": PROMPT_LOSS_SYSTEM},
                 {"role": "user", "content": prompt_text}
             ],
             temperature=temperature,
@@ -84,14 +65,14 @@ def process_record(data: Dict[str, Any], model: str) -> Dict[str, Any]:
     """
     处理单条记录:生成信息损失描述并将其添加到数据字典中。
     """
-    original_text = data.get('text')
-    anonymized_text = data.get('anonymized_text')
+    original_biography = data.get('text')
+    anonymized_biography = data.get('anonymized_biography')
     
-    if not original_text or not anonymized_text:
+    if not original_biography or not anonymized_biography:
         data['loss_description_sentence'] = "Error: Missing original or anonymized biography."
         return data
 
-    prompt = PROMPT_TEMPLATE.format(original_text=original_text, anonymized_text=anonymized_text)
+    prompt = PROMPT_LOSS_SYSTEM.format(original_biography=original_biography, anonymized_biography=anonymized_biography)
     description = generate_api_response(prompt, model=model, temperature=0.2)
     
     data['loss_description_sentence'] = description
