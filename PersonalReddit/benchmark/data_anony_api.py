@@ -237,6 +237,7 @@ def process_record(data: Dict[str, Any], max_iterations: int) -> Dict[str, Any]:
     return data
 
 def main():
+    global GLOBAL_CLIENT, LLM_MODEL
     parser = argparse.ArgumentParser(description="Anonymize user responses in a JSONL file in parallel using API.")
     parser.add_argument("--max_workers", type=int, default=10, help="Maximum number of parallel threads to use.")
     parser.add_argument("--input_file", type=str, required=True, help="Path to the input JSONL file (e.g., train.jsonl).")
@@ -251,9 +252,6 @@ def main():
     args = parser.parse_args()
 
     # --- Client/Model 初始化 ---
-    global GLOBAL_CLIENT
-    global LLM_MODEL
-    
     if args.model:
         LLM_MODEL = args.model # 允许通过命令行覆盖模型
         

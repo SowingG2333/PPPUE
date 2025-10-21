@@ -28,21 +28,20 @@ PROMPT_LOSS_SYSTEM = """
 You are an expert in analyzing text and extracting relevant information about occupations.
 """
 PROMPT_LOSS_USER = """
-Compare the [Original Text] and [Anonymized Text]. Your goal is to create a very concise note describing only the information that was lost and is useful for guessing the user's occupation.
+Compare the user's [Original Response] and [Anonymized Response] to the [Question Asked]. Your goal is to create a concise sentence describing the information that was lost which is useful for guessing the user's occupation.
 
-Follow these rules:
+If no occupation-relevant information was lost, simply write "No occupation-relevant information was lost."
 
-- Focus on Occupation: Only extract clues about the user's job, skills, education, or work environment.
+[Question Asked]:
+{question_asked}
 
-- Ignore Irrelevant Details: Do not include lost information about hobbies, music, personal relationships, or specific non-work-related events.
+[Original Response]:
+{original_response}
 
-- Handle "No Clues": If no occupation-relevant information was lost, simply write "No occupation-relevant information was lost."
+[Anonymized Response]:
+{anonymized_response}
 
-[Original Text]:
-{original_text}
-
-[Anonymized Text]:
-{anonymized_text}
+Now, provide the sentence start with "The user...". Do not add any explanations and additional commentary.
 
 Your Output:
 """
@@ -72,14 +71,15 @@ def process_record(data: Dict[str, Any], model: str) -> Dict[str, Any]:
     """
     处理单条记录：生成信息损失描述并将其添加到数据字典中。
     """
-    original_text = data.get('response')
-    anonymized_text = data.get('anonymized_response')
+    question_asked = data.get('question_asked')
+    original_response = data.get('response')
+    anonymized_response = data.get('anonymized_response')
     
-    if not original_text or not anonymized_text:
+    if not original_response or not anonymized_response:
         data['loss_description_sentence'] = "Error: Missing original or anonymized response."
         return data
 
-    prompt = PROMPT_LOSS_USER.format(original_text=original_text, anonymized_text=anonymized_text)
+    prompt = PROMPT_LOSS_USER.format(question_asked=question_asked, original_response=original_response, anonymized_response=anonymized_response)
     description = generate_api_response(prompt, model=model, temperature=0.2)
     
     data['loss_description_sentence'] = description

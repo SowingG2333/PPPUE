@@ -17,17 +17,20 @@ PROMPT_LOSS_SYSTEM = """
 You are an expert in analyzing text and extracting relevant information about occupations.
 """
 PROMPT_LOSS_USER = """
-Compare the [Original Text] and [Anonymized Text]. Your goal is to create a concise note in key words describing only the information that was lost and is useful for guessing the user's occupation.
+Compare the user's [Original Response] and [Anonymized Response] to the [Question Asked]. Your goal is to create a concise sentence describing the information that was lost which is useful for guessing the user's occupation.
 
 If no occupation-relevant information was lost, simply write "No occupation-relevant information was lost."
 
-[Original Text]:
-{original_text}
+[Question Asked]:
+{question_asked}
 
-[Anonymized Text]:
-{anonymized_text}
+[Original Response]:
+{original_response}
 
-Now, provide the key words and do not add any explanations or additional commentary.
+[Anonymized Response]:
+{anonymized_response}
+
+Now, provide the sentence start with "The user...". Do not add any explanations and additional commentary.
 
 Your Output:
 """
@@ -156,14 +159,15 @@ def process_record(data: Dict[str, Any], pipe, tokenizer) -> Dict[str, Any]:
     """
     处理单条记录：生成信息损失描述并将其添加到数据字典中。
     """
-    original_text = data.get('response')
-    anonymized_text = data.get('anonymized_response')
+    question_asked = data.get('question_asked')
+    original_response = data.get('response')
+    anonymized_response = data.get('anonymized_response')
     
-    if not original_text or not anonymized_text:
+    if not original_response or not anonymized_response:
         data['loss_description_sentence'] = "Error: Missing original or anonymized response."
         return data
 
-    prompt_user_content = PROMPT_LOSS_USER.format(original_text=original_text, anonymized_text=anonymized_text)
+    prompt_user_content = PROMPT_LOSS_USER.format(question_asked=question_asked, original_response=original_response, anonymized_response=anonymized_response)
     
     # 调用本地生成函数
     description = generate_local_response(
