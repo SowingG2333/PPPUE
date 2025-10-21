@@ -9,6 +9,7 @@ from openai import OpenAI
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
+import time
 
 class Config:
     DEEPSEEK_API_KEY = os.environ.get("API_KEY")
@@ -16,12 +17,15 @@ class Config:
     JUDGE_MODEL_NAME = "deepseek-chat"
 
     # 路径
-    INPUT_DATA_FILE = "/root/autodl-tmp/PPPUE/DB-Bio/benchmark/test/local_anony_test_extract_with_local_loss.jsonl"
-    PREDICTIONS_FILE = "/root/autodl-tmp/PPPUE/DB-Bio/results/alignment/output/pred_BASELINE.jsonl"
-    OUTPUT_DIR = "/root/autodl-tmp/PPPUE/DB-Bio/results/alignment/eval_results"
+    INPUT_DATA_FILE = "/home/sowingg/coding/LLM/PPPUE/DB-Bio/benchmark/test/local_anony_test_extract_with_local_loss.jsonl"
+    PREDICTIONS_FILE = "/home/sowingg/coding/LLM/PPPUE/DB-Bio/results/alignment/output/pred_DP_eps5.0.jsonl"
+    OUTPUT_DIR = "/home/sowingg/coding/LLM/PPPUE/DB-Bio/results/alignment/eval_results"
 
     # 其它
     LIMIT: Optional[int] = None
+    REQUEST_TIMEOUT: float = 10.0
+    MAX_RETRIES: int = 3
+    RETRY_BACKOFF_SECONDS: float = 2.0
 
 PROMPT_DISCRETE_SYSTEM = """
 You are a highly precise evaluation expert with a deep understanding of professional roles and their nuances.
@@ -30,14 +34,14 @@ You are a highly precise evaluation expert with a deep understanding of professi
 PROMPT_DISCRETE_USER = """
 Your task is to strictly determine if the "Generated Answer" correctly identifies the "Ground Truth Profession".
 
-A "Generated Answer" is considered **"Correct"** only if it meets one of the following criteria:
-1.  It is an **exact match** with the "Ground Truth Profession".
-2.  It is a **clear and direct synonym** (e.g., Footballer for Soccer Player).
-3.  It is **more specific or more precise** than the ground truth, while still being factually accurate based on a person's career (e.g., "Academy Coach" is a more precise current role for a "Soccer Player" who has transitioned).
+A "Generated Answer" is considered "Correct" only if it meets one of the following criteria:
+1.  It is an exact match with the "Ground Truth Profession".
+2.  It is a clear and direct synonym (e.g., Footballer for Soccer Player).
+3.  It is more specific or more precise than the ground truth, while still being factually accurate based on a person's career (e.g., "Academy Coach" is a more precise current role for a "Soccer Player" who has transitioned).
 
-A "Generated Answer" is **"Incorrect"** if:
+A "Generated Answer" is "Incorrect" if:
 1.  It is a completely different profession.
-2.  It is a **more general or less precise** role (e.g., "Cook" for "Chef").
+2.  It is a more general or less precise role (e.g., "Cook" for "Chef").
 
 Output your final verdict as a single word: "Correct" or "Incorrect".
 
@@ -63,7 +67,7 @@ SCORING RUBRIC (10-Point Scale):
 - 1-2 (Incorrect): The answer is completely wrong or irrelevant.
 - 3-4 (Weakly Related): The answer is in a related but incorrect field.
 - 5-6 (Correct Generalization): The answer provides a correct but overly general category.
-- 7-8 (Good Recovery): The answer correctly identifies a significant *past* profession or a very close synonym, but misses the most current or precise role.
+- 7-8 (Good Recovery): The answer correctly identifies a significant past profession or a very close synonym, but misses the most current or precise role.
 - 9-10 (Excellent Recovery): The answer is highly specific and correctly identifies the person's primary and most current profession.
 
 [Original Text]:
@@ -75,16 +79,19 @@ SCORING RUBRIC (10-Point Scale):
 Your Output:
 """
 
-def _api_chat_complete(client: OpenAI, model: str, messages: List[Dict], temperature: float) -> str:
-    try:
-        completion = client.chat.completions.create(model=model, messages=messages, temperature=temperature)
-        content = completion.choices[0].message.content
-        if content is None:
-            raise ValueError("Empty content from API.")
-        return content.strip()
-    except Exception as e:
-        tqdm.write(f"API 调用异常: {e}")
-        return "API_ERROR"
+def _api_chat_complete(client: OpenAI, model: str, messages: List[Dict], temperature: float, config: Config) -> str:
+    for attempt in range(1, config.MAX_RETRIES + 1):
+        try:
+            completion = client.chat.completions.create(model=model, messages=messages, temperature=temperature)
+            content = completion.choices[0].message.content
+            if content is None:
+                raise ValueError("Empty content from API.")
+            return content.strip()
+        except Exception as e:
+            tqdm.write(f"API 调用异常({attempt}/{config.MAX_RETRIES}): {e}")
+            if attempt == config.MAX_RETRIES:
+                return "API_ERROR"
+            time.sleep(config.RETRY_BACKOFF_SECONDS * attempt)
 
 def judge_discrete(generated_answer: str, ground_truth_label: str, client: OpenAI, config: Config) -> bool:
     prompt = PROMPT_DISCRETE_USER.format(ground_truth=ground_truth_label, generated_answer=generated_answer)
@@ -93,7 +100,8 @@ def judge_discrete(generated_answer: str, ground_truth_label: str, client: OpenA
         config.JUDGE_MODEL_NAME,
         [{"role": "system", "content": PROMPT_DISCRETE_SYSTEM},
          {"role": "user", "content": prompt}],
-        0.0
+        0.0,
+        config,
     )
     verdict = res.lower().strip().strip('.,!"\'')
     return verdict == "correct"
@@ -105,7 +113,8 @@ def judge_score(generated_answer: str, original_text: str, client: OpenAI, confi
         config.JUDGE_MODEL_NAME,
         [{"role": "system", "content": PROMPT_SCORE_SYSTEM},
          {"role": "user", "content": prompt}],
-        0.0
+        0.0,
+        config,
     )
     if res == "API_ERROR":
         return 1
@@ -128,7 +137,11 @@ _thread_local = threading.local()
 def _get_client(config: Config) -> OpenAI:
     client = getattr(_thread_local, "client", None)
     if client is None:
-        client = OpenAI(api_key=config.DEEPSEEK_API_KEY, base_url=config.DEEPSEEK_API_BASE)
+        client = OpenAI(
+            api_key=config.DEEPSEEK_API_KEY,
+            base_url=config.DEEPSEEK_API_BASE,
+            timeout=config.REQUEST_TIMEOUT,
+        )
         _thread_local.client = client
     return client
 
@@ -183,7 +196,7 @@ def main():
     parser.add_argument('--pred', type=str, help="预测结果 JSONL 路径（由生成脚本输出）")
     parser.add_argument('--limit', type=int, help="限制评估条数")
     parser.add_argument('--outdir', type=str, help="评估结果输出目录")
-    parser.add_argument('--workers', type=int, default=50, help="并发线程数（默认 10）")
+    parser.add_argument('--workers', type=int, default=50, help="并发线程数（默认 50）")
     args = parser.parse_args()
 
     config = Config()
