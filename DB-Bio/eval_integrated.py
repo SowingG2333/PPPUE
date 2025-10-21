@@ -16,9 +16,9 @@ class Config:
     JUDGE_MODEL_NAME = "deepseek-chat"
 
     # 路径
-    INPUT_DATA_FILE = "/home/sowingg/coding/LLM/PPPUE/DB-Bio-new/benchmark/test/test_anony_with_loss_relabel.jsonl"
-    PREDICTIONS_FILE = "/home/sowingg/coding/LLM/PPPUE/DB-Bio-new/results/output/pred_ORIGINAL_TEXT.jsonl"
-    OUTPUT_DIR = "/home/sowingg/coding/LLM/PPPUE/DB-Bio-new/results/eval_results/label_origin"
+    INPUT_DATA_FILE = "/root/autodl-tmp/PPPUE/DB-Bio/benchmark/test/local_anony_test_extract_with_local_loss.jsonl"
+    PREDICTIONS_FILE = "/root/autodl-tmp/PPPUE/DB-Bio/results/alignment/output/pred_BASELINE.jsonl"
+    OUTPUT_DIR = "/root/autodl-tmp/PPPUE/DB-Bio/results/alignment/eval_results"
 
     # 其它
     LIMIT: Optional[int] = None
@@ -41,34 +41,6 @@ A "Generated Answer" is **"Incorrect"** if:
 
 Output your final verdict as a single word: "Correct" or "Incorrect".
 
---- EXAMPLES ---
-
-**Example 1: Clear Synonym (Correct)**
-Ground Truth Profession: "Soccer Player"
-Generated Answer: "Based on the text, I believe this person is a Footballer."
-Your verdict: Correct
-
-**Example 2: More Precise Role (Correct)**
-Ground Truth Profession: "Soccer Player"
-Generated Answer: "His current job is a football coach."
-Your verdict: Correct
-
-**Example 3: Less Precise Role (Incorrect)**
-Ground Truth Profession: "Chef"
-Generated Answer: "Cook"
-Your verdict: Incorrect
-
-**Example 4: Related but Different Role (Incorrect)**
-Ground Truth Profession: "Data Scientist"
-Generated Answer: "Data Analyst."
-Your verdict: Incorrect
-
-**Example 5: Clearly Different Profession (Incorrect)**
-Ground Truth Profession: "Architect"
-Generated Answer: "The person is likely an Engineer."
-Your verdict: Incorrect
---- END EXAMPLES ---
-
 Ground Truth Profession: "{ground_truth}"
 
 Generated Answer: "{generated_answer}"
@@ -81,45 +53,18 @@ You are a highly discerning evaluation expert with deep contextual understanding
 """
 
 PROMPT_SCORE_USER = """
-Your goal is to evaluate the quality of a "Generated Answer" regarding a person's occupation, using the full **[Original Text]** as the ultimate source of truth.
+Your goal is to evaluate the quality of a "Generated Answer" regarding a person's occupation, using the full [Original Text] as the ultimate source of truth.
 
-The "Generated Answer" was produced by an AI that only saw an ANONYMIZED version of the text. Your evaluation must focus on **how well the AI's answer reflects the specific, nuanced, and current information present only in the [Original Text]**.
+The "Generated Answer" was produced by an AI that only saw an ANONYMIZED version of the text. Your evaluation must focus on how well the AI's answer reflects the specific, nuanced, and current information present only in the [Original Text].
 
-Please rate the "Generated Answer" on a scale of 1 to 10 based on the rubric below. **Output ONLY the integer score and nothing else.**
+Please rate the "Generated Answer" on a scale of 1 to 10 based on the rubric below. Output ONLY the integer score and nothing else.
 
-**SCORING RUBRIC (10-Point Scale):**
-* **1-2 (Incorrect)**: The answer is completely wrong or irrelevant.
-* **3-4 (Weakly Related)**: The answer is in a related but incorrect field.
-* **5-6 (Correct Generalization)**: The answer provides a correct but overly general category.
-* **7-8 (Good Recovery)**: The answer correctly identifies a significant *past* profession or a very close synonym, but misses the most current or precise role.
-* **9-10 (Excellent Recovery)**: The answer is highly specific and correctly identifies the person's **primary and most current** profession.
-
---- EXAMPLES ---
-
-**Example 1:**
-[Original Text]: "Alan Desmond Lee is a former footballer who played as a striker; he is now working as an academy coach at Ipswich Town."
-[Generated Answer]: "Academy Coach"
-Your Output:
-10
-
-**Example 2:**
-[Original Text]: "Alan Desmond Lee is a former footballer who played as a striker; he is now working as an academy coach at Ipswich Town."
-[Generated Answer]: "Soccer Player"
-Your Output:
-7
-
-**Example 3:**
-[Original Text]: "As a structural engineer, my marriage is like a well-oiled piece of intricate structural machinery..."
-[Generated Answer]: "Engineer"
-Your Output:
-6
-
-**Example 4:**
-[Original Text]: "As a data scientist, I build predictive models..."
-[Generated Answer]: "Data Analyst"
-Your Output:
-4
---- END EXAMPLES ---
+SCORING RUBRIC (10-Point Scale):
+- 1-2 (Incorrect): The answer is completely wrong or irrelevant.
+- 3-4 (Weakly Related): The answer is in a related but incorrect field.
+- 5-6 (Correct Generalization): The answer provides a correct but overly general category.
+- 7-8 (Good Recovery): The answer correctly identifies a significant *past* profession or a very close synonym, but misses the most current or precise role.
+- 9-10 (Excellent Recovery): The answer is highly specific and correctly identifies the person's primary and most current profession.
 
 [Original Text]:
 {original_text}

@@ -19,15 +19,15 @@ class Config:
     # 模型路径
     LLM_PATH = "/root/autodl-tmp/huggingface/hub/models--meta-llama--Meta-Llama-3-8B-Instruct/snapshots/8afb486c1db24fe5011ec46dfbe5b5dccdb575c2"
     UEM_PATH = "/root/autodl-tmp/huggingface/hub/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09"
-    CKPT_PATH = "/root/autodl-tmp/PPPUE/DB-Bio-new/ckpt/best_model"
+    CKPT_PATH = "/root/autodl-tmp/PPPUE/DB-Bio/ckpt/alignment/best_model"
 
     # 数据与输出
-    INPUT_DATA_FILE = "/root/autodl-tmp/PPPUE/DB-Bio-new/benchmark/test/test_anony_with_loss.jsonl"
-    OUTPUT_DIR = "/root/autodl-tmp/PPPUE/DB-Bio-new/results/output"
+    INPUT_DATA_FILE = "/root/autodl-tmp/PPPUE/DB-Bio/results/alignment/output/pred_BASELINE.jsonl"
+    OUTPUT_DIR = "/root/autodl-tmp/PPPUE/DB-Bio/results/alignment/output"
 
     # 生成设置
     EVAL_MODE = "DP"  # Options: BASELINE, STANDARD, CLIPPING_ONLY, DP, ORIGINAL_TEXT
-    EPSILON = 1.0
+    EPSILON = 5.0
     CLIPPING_NORM = 1.0
     PREFIX_LENGTH = 5
     LIMIT: Optional[int] = None

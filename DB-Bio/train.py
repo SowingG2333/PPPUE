@@ -16,9 +16,9 @@ import wandb
 LLM_MODEL_PATH = "/root/autodl-tmp/huggingface/hub/models--meta-llama--Meta-Llama-3-8B-Instruct/snapshots/8afb486c1db24fe5011ec46dfbe5b5dccdb575c2"
 UEM_MODEL_PATH = "/root/autodl-tmp/huggingface/hub/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09"
 
-TRAIN_DATA_FILE = "/root/autodl-tmp/PPPUE/DB-Bio-new/benchmark/train/train.jsonl"
-VAL_DATA_FILE = "/root/autodl-tmp/PPPUE/DB-Bio-new/benchmark/train/val.jsonl"
-CKPT_DIR = "/root/autodl-tmp/PPPUE/DB-Bio-new/ckpt"
+TRAIN_DATA_FILE = "/root/autodl-tmp/PPPUE/DB-Bio/benchmark/train/42/train.jsonl"
+VAL_DATA_FILE = "/root/autodl-tmp/PPPUE/DB-Bio/benchmark/train/42/val.jsonl"
+CKPT_DIR = "/root/autodl-tmp/PPPUE/DB-Bio/ckpt/alignment"
 
 # 训练超参数
 LEARNING_RATE_UEM = 1e-5
@@ -399,12 +399,17 @@ def main():
     print(f"UEM Learning Rate: {LEARNING_RATE_UEM}")
     print(f"LoRA Learning Rate: {LEARNING_RATE_LORA}")
     
+    # --- MODIFICATION: 1. 初始化 global_step ---
+    global_step = 0
+
     for epoch in range(EPOCHS):
         model.train()
         total_train_loss = 0
         num_samples_trained = 0
 
-        for batch in tqdm(train_loader, desc=f"Training Epoch {epoch + 1}"):
+        # 在 tqdm 中添加 global_step 跟踪
+        progress_bar = tqdm(train_loader, desc=f"Training Epoch {epoch + 1}")
+        for batch in progress_bar:
             logits_teacher, target_ids = model.get_teacher_logits(
                 original_texts=batch['original_text'],
                 anonymized_texts=batch['anonymized_text']
@@ -420,13 +425,32 @@ def main():
                 logits_teacher=logits_teacher,
                 target_ids=target_ids
             )
-            total_train_loss += loss.item()
+            
+            if torch.isnan(loss) or torch.isinf(loss):
+                print(f"Warning: NaN or Inf loss detected at step {global_step}. Skipping batch.")
+                del logits_teacher, target_ids
+                torch.cuda.empty_cache()
+                continue
+
+            batch_loss_value = loss.item()
+            total_train_loss += batch_loss_value
             num_samples_trained += 1
             
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), CLIPPING_NORM)
             optimizer.step()
             
+            # --- MODIFICATION: 2. 记录 batch loss 并递增 step ---
+            wandb.log({
+                "train/batch_loss": batch_loss_value,
+                "step": global_step
+            })
+            global_step += 1
+            
+            # (可选) 在 tqdm 进度条中显示当前的 batch loss
+            progress_bar.set_postfix(batch_loss=f"{batch_loss_value:.6f}")
+            # --- END MODIFICATION ---
+
             del logits_teacher, target_ids
             torch.cuda.empty_cache()
 
@@ -438,14 +462,16 @@ def main():
         print(f"Epoch {epoch + 1} | Train Loss: {avg_train_loss:.6f} | Val Loss: {val_loss:.6f}")
         print(f"Current LR - UEM: {optimizer.param_groups[0]['lr']:.2e}, LoRA: {optimizer.param_groups[2]['lr']:.2e}")
 
-        # --- WANDB 日志记录 ---
+        # --- MODIFICATION: 3. 在 epoch 日志中添加 global_step ---
         wandb.log({
             "epoch": epoch + 1,
-            "train_loss": avg_train_loss,
+            "train_loss": avg_train_loss,  # 这是 epoch 平均 loss
             "val_loss": val_loss,
             "lr_uem": optimizer.param_groups[0]['lr'],
-            "lr_lora": optimizer.param_groups[2]['lr']
+            "lr_lora": optimizer.param_groups[2]['lr'],
+            "step": global_step # 确保 epoch 日志与 batch 日志对齐
         })
+        # --- END MODIFICATION ---
 
         # 保存最佳模型
         if val_loss < best_val_loss:
