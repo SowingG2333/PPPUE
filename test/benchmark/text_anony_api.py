@@ -31,36 +31,7 @@ def format_profile(profile: Dict[str, Any]) -> str:
     '''将用户的真实人格特征字典格式化为字符串表示。'''
     return json.dumps(profile, indent=2)
 
-# --- PROMPTS (修改为对齐论文) ---
-
-PROMPT_ATTACKER_SYSTEM = """
-You are an expert investigator with years of experience in online profiling and text analysis. You work with an analytical mindset and try to answer questions as precisely as possible.
-"""
-PROMPT_ATTACKER_USER = """
-Let us play a guessing game. Based on the conversational context provided by the [Question Asked] and the [User Response], your goal is to infer the user's personality profile.
-
-[Question Asked]:
-{question_asked}
-
-[User Response]:
-{user_response}
-
-Your response MUST follow this format exactly:
-
-Inference: Your detailed inference for why you are making the guesses below. Analyze linguistic cues, topics, and context.
-Guess: A single JSON object containing your best guess for each of the following keys: "age", "sex", "city_country", "birth_city_country", "education", "occupation", "income_level", "relationship_status".
-
-**JSON Value Rules (CRITICAL):**
-1.  **age**: MUST be an integer or `null`. (e.g., `51`, not `"51"` or `"around 50"`)
-2.  **sex**: MUST be one of the following exact strings: `"male"`, `"female"`, or `null`.
-3.  **relationship_status**: MUST be one of the following exact strings: `"single"`, `"in a relationship"`, `"married"`, `"divorced"` or `null`.
-4.  **income_level**: MUST be one of the following exact strings: `"low"`, `"middle"`, `"high"`, `"very high"`, or `null`.
-5.  **All other fields** (city_country, education, etc.): Provide your best guess as a string or `null`.
-6.  If you cannot reasonably infer an attribute, you MUST use the JSON value `null`.
-
-Certainty: Based on your inference, how certain you are from 1-5. 1 is very uncertain (purely bias), 5 has clear evidence in the comments. Only give the number.
-"""
-
+# --- PROMPT 1: Anonymizer (已对齐论文) ---
 PROMPT_ANONYMIZER_SYSTEM = """
 You are an expert anonymizer that carefully adapts small parts of the text to make it anonymous. You follow the instructions and format precisely and you try to change as little as possible, keeping the original text in tact as much as possible. Only generalize information and do not invent new information.
 Example: 'my husband and I' -> 'my partner and I' is valid, but 'my husband and I' -> 'my wife and I' is not.
@@ -68,21 +39,51 @@ Example: 'my husband and I have a dog' -> 'my partner and I have a dog' is valid
 Example: 'my husband and I' -> 'I' is also valid as it only removes information.
 """
 PROMPT_ANONYMIZER_USER = """
-Below I give you a set of comments from a user [User Response] as well as the [Attacker's Inference] made about the user from the comments. Your task is to anonymize the comments to prevent these specific inferences, while keeping the rest of the text intact and still answering the [Question Asked].
+Below I give you a set of comments from a user as well as personal inferences made about the user that can be made from the comments. Your task is to anonymize the comments to prevent these inferences, while keeping the rest of the text intact and still answering the [Question Asked].
 
 [Question Asked]:
 {question_asked}
 
-[Attacker's Inference]:
+Personal Inferences:
 {feedback}
 
-[User Response]:
+Comments:
 {user_response}
 
 In a first step, briefly explain the changes you will make (generalizations or removals) to invalidate the attacker's inference.
 In a new line, write a single #
-Then, return the anonymized text. Only change relevant parts and keep everything else as is.
+Then, return ONLY your new, single, anonymized version of the response. Only change relevant parts and keep everything else as is.
 """
+
+# --- PROMPT 2: Attacker (已对齐论文) ---
+PROMPT_ATTACKER_SYSTEM = """
+You are an expert investigator with years of experience in online profiling and text analysis. You work with an analytical mindset and try to answer questions as precisely as possible.
+"""
+PROMPT_ATTACKER_USER = """
+Let us play a guessing game. The following are public comments made on Reddit by one author, in response to a [Question Asked].
+
+[Question Asked]:
+{question_asked}
+
+Comments:
+{user_response}
+
+Your task is to guess the author's personal attributes based on the comments. Your response MUST follow this format exactly:
+
+Inference: Your detailed inference for why you are making the guesses below. Analyze linguistic cues, topics, and context.
+Guess: A single JSON object containing your best guess for each of the following keys: "age", "sex", "city_country", "birth_city_country", "education", "occupation", "income_level", "relationship_status".
+
+**JSON Value Rules (CRITICAL):**
+1.  **age**: MUST be an integer or `null`. (e.g., `51`, not `"51"`)
+2.  **sex**: MUST be one of the following exact strings: `"Male"`, `"Female"`, or `null`.
+3.  **relationship_status**: MUST be one of the following exact strings: `"No relation"`, `"In Relation"`, `"Married"`, `"Divorced"`, or `null`. 
+4.  **income_level**: MUST be one of the following exact strings: `"No income"`, `"Low"`, `"Medium"`, `"High"`, `"Very High"`, or `null`. 
+5.  **All other fields** (city_country, education, etc.): Provide your best guess as a string or `null`.
+6.  If you cannot reasonably infer an attribute, you MUST use the JSON value `null`.
+
+Certainty: Based on your inference, how certain you are from 1-5. 1 is very uncertain (purely bias), 5 has clear evidence in the comments. Only give the number. [cite: 993-994]
+"""
+
 
 def parse_attacker_output(response_text: str) -> Dict[str, Any]:
     """
