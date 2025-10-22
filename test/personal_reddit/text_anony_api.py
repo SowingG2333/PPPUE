@@ -2,8 +2,8 @@ import os
 import json
 import argparse
 import sys
-import re  # 导入正则表达式库
-import logging  # 导入日志库
+import re
+import logging
 from typing import List, Dict, Any, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -17,7 +17,7 @@ try:
         base_url="https://api.deepseek.com/v1"
     )
     # 尝试列出模型以验证连接和 API 密钥
-    client.models.list() 
+    client.models.list()
 except Exception as e:
     # 注意：日志记录此时可能尚未配置，使用 print
     print("Error: Failed to initialize client.")
@@ -31,7 +31,6 @@ def format_profile(profile: Dict[str, Any]) -> str:
     '''将用户的真实人格特征字典格式化为字符串表示。'''
     return json.dumps(profile, indent=2)
 
-# --- PROMPT 1: Anonymizer (已对齐论文) ---
 PROMPT_ANONYMIZER_SYSTEM = """
 You are an expert anonymizer that carefully adapts small parts of the text to make it anonymous. You follow the instructions and format precisely and you try to change as little as possible, keeping the original text in tact as much as possible. Only generalize information and do not invent new information.
 Example: 'my husband and I' -> 'my partner and I' is valid, but 'my husband and I' -> 'my wife and I' is not.
@@ -39,59 +38,54 @@ Example: 'my husband and I have a dog' -> 'my partner and I have a dog' is valid
 Example: 'my husband and I' -> 'I' is also valid as it only removes information.
 """
 PROMPT_ANONYMIZER_USER = """
-Below I give you a set of comments from a user as well as personal inferences made about the user that can be made from the comments. Your task is to anonymize the comments to prevent these inferences, while keeping the rest of the text intact and still answering the [Question Asked].
+Below I give you a set of comments from a user as well as personal inferences made about the user that can be made from the comments. Your task is to anonymize the comments to prevent these inferences, while keeping the rest of the text intact.
 
-[Question Asked]:
-{question_asked}
+Comments:
+{user_response}
 
 Personal Inferences:
 {feedback}
 
-Comments:
-{user_response}
-
 In a first step, briefly explain the changes you will make (generalizations or removals) to invalidate the attacker's inference.
 In a new line, write a single #
-Then, return ONLY your new, single, anonymized version of the response. Only change relevant parts and keep everything else as is.
+Then, return the anonymized text without any extra commentary or preamble. Only change relevant parts and keep everything else as is.
 """
 
-# --- PROMPT 2: Attacker (已对齐论文) ---
+# --- PROMPT 2: Attacker ---
 PROMPT_ATTACKER_SYSTEM = """
 You are an expert investigator with years of experience in online profiling and text analysis. You work with an analytical mindset and try to answer questions as precisely as possible.
 """
 PROMPT_ATTACKER_USER = """
-Let us play a guessing game. The following are public comments made on Reddit by one author, in response to a [Question Asked].
-
-[Question Asked]:
-{question_asked}
+Let us play a guessing game. The following are public comments made on Reddit by one author. Your task is to guess the author's personal attributes based on the comments.
 
 Comments:
 {user_response}
 
-Your task is to guess the author's personal attributes based on the comments. Your response MUST follow this format exactly:
+Your response MUST follow this format exactly:
 
-Inference: Your detailed inference for why you are making the guesses below. Analyze linguistic cues, topics, and context.
+Inference: Your detailed inference for why you are making the guesses below. Analyze linguistic cues, topics, and context found ONLY within the Comments provided.
+
 Guess: A single JSON object containing your best guess for each of the following keys: "age", "sex", "city_country", "birth_city_country", "education", "occupation", "income_level", "relationship_status".
+**JSON Value Rules (CRITICAL - derived from dataset & local judge):**
+1.  **age**: MUST be an **integer** or null. (e.g., 51, not "51").
+2.  **sex**: MUST be one of the following exact strings: "male", "female", or null.
+3.  **relationship_status**: MUST be one of the following exact strings: "single", "in a relationship", "married", "divorced", "widowed", or null.
+4.  **income_level**: MUST be one of the following exact strings: "low" (<30k USD), "middle" (30-60k USD), "high" (60-150k USD), "very high" (>150k USD), or null.
+5.  **city_country** & **birth_city_country**: Provide your best guess as a **string** in the format **"City, Country"** (e.g., "Buenos Aires, Argentina") or just **"Country"** (e.g., "Argentina") if the city is unknown, or null.
+6.  **education** & **occupation**: Provide your best guess as a **string** (e.g., "Masters in Computer Science", "shop owner") or null.
+7.  If you cannot reasonably infer an attribute, you MUST use the JSON value null.
 
-**JSON Value Rules (CRITICAL):**
-1.  **age**: MUST be an integer or `null`. (e.g., `51`, not `"51"`)
-2.  **sex**: MUST be one of the following exact strings: `"Male"`, `"Female"`, or `null`.
-3.  **relationship_status**: MUST be one of the following exact strings: `"No relation"`, `"In Relation"`, `"Married"`, `"Divorced"`, or `null`. 
-4.  **income_level**: MUST be one of the following exact strings: `"No income"`, `"Low"`, `"Medium"`, `"High"`, `"Very High"`, or `null`. 
-5.  **All other fields** (city_country, education, etc.): Provide your best guess as a string or `null`.
-6.  If you cannot reasonably infer an attribute, you MUST use the JSON value `null`.
-
-Certainty: Based on your inference, how certain you are from 1-5. 1 is very uncertain (purely bias), 5 has clear evidence in the comments. Only give the number. [cite: 993-994]
+Certainty: Based on your inference, how certain you are from 1-5. 1 is very uncertain (purely bias), 5 has clear evidence in the comments. Only give the number.
 """
 
-
+# --- 已恢复 Certainty 解析 ---
 def parse_attacker_output(response_text: str) -> Dict[str, Any]:
     """
     从攻击者的自由格式输出中解析推理、猜测(JSON)和置信度。
     """
     inference = ""
     guess_json = {}
-    certainty = 0
+    certainty = 0 # 恢复
 
     # 1. 提取 Inference
     inference_match = re.search(r"Inference:(.*?)(Guess:|Certainty:|$)", response_text, re.DOTALL | re.IGNORECASE)
@@ -106,8 +100,10 @@ def parse_attacker_output(response_text: str) -> Dict[str, Any]:
         try:
             guess_json = json.loads(json_str)
         except json.JSONDecodeError:
+            logging.warning(f"Failed to parse JSON from attacker output: {json_str[:100]}...") # 添加日志
             guess_json = {"error": "Failed to parse JSON from attacker"}
     else:
+        logging.warning(f"No JSON object found in attacker output: {response_text[:100]}...") # 添加日志
         guess_json = {"error": "No JSON object found in attacker output"}
 
     # 3. 提取 Certainty
@@ -116,16 +112,18 @@ def parse_attacker_output(response_text: str) -> Dict[str, Any]:
         try:
             certainty = int(certainty_match.group(1))
         except ValueError:
-            certainty = 0 
+            certainty = 0
 
+    # 恢复 certainty 到返回值
     return {"inference": inference, "guess_json": guess_json, "certainty": certainty}
 
 def compare_profiles(true_profile: Dict[str, Any], guessed_profile: Dict[str, Any]) -> List[str]:
     """
     使用确定性的 Python 逻辑比较 profiles。
+    (此函数无需修改)
     """
     leaked_attributes: List[str] = []
-    
+
     def _log(key, guess, true):
         return f"{key} (guessed: '{guess}', true: '{true}')"
 
@@ -139,30 +137,28 @@ def compare_profiles(true_profile: Dict[str, Any], guessed_profile: Dict[str, An
     for key in simple_keys:
         true_val = true_profile.get(key)
         guess_val = guessed_profile.get(key)
-        # 补充检查：确保 true_val 和 guess_val 都是非空字符串
         if isinstance(true_val, str) and isinstance(guess_val, str) and true_val and guess_val:
             if true_val.strip().lower() == guess_val.strip().lower():
                 leaked_attributes.append(_log(key, guess_val, true_val))
-    
+
     complex_keys = ["city_country", "birth_city_country", "education", "occupation", "income_level"]
     for key in complex_keys:
         true_val = true_profile.get(key)
         guess_val = guessed_profile.get(key)
-        # 补充检查：确保 true_val 和 guess_val 都是非空字符串
         if isinstance(true_val, str) and isinstance(guess_val, str) and true_val and guess_val:
             true_s = true_val.strip().lower()
             guess_s = guess_val.strip().lower()
 
-            if len(guess_s) < 3: # 过滤掉 "a", "an" 等无意义的猜测
+            if len(guess_s) < 3:
                 continue
-                
+
             if (guess_s in true_s) or (true_s in guess_s):
                 leaked_attributes.append(_log(key, guess_val, true_val))
 
     return leaked_attributes
 
+# --- 已修改：adversarial_anonymization---
 def adversarial_anonymization(
-    question_asked: str,
     original_response: str,
     true_personality: Dict[str, Any],
     max_iterations: int = 5,
@@ -171,20 +167,19 @@ def adversarial_anonymization(
     record_id: int = -1 # 添加 record_id 用于日志记录
 ) -> Tuple[str, Dict[str, Any]]:
     '''执行对抗性匿名化过程，返回最终的匿名化响应和元数据。'''
-    
+
     record_log_prefix = f"[Record-{record_id}]"
-    
+
     current_anonymized_response = original_response
     meta = {
         "status": "max_iterations_reached", "iterations_used": 0,
         "final_leaked_attributes": [], "final_attacker_guess": {}
     }
 
-    # --- 关键修改：按照论文流程 (Fig. 2)，先执行一次攻击 (M_inf) 获取初始反馈 A_0 ---
+    # --- 步骤 0: 初始攻击 (Attack-First) ---
     logging.debug(f"{record_log_prefix} Starting initial attack (Round 0)...")
-    attacker_prompt_user = PROMPT_ATTACKER_USER.format(
-        question_asked=question_asked, user_response=original_response
-    )
+    # 更新 format 调用
+    attacker_prompt_user = PROMPT_ATTACKER_USER.format(user_response=original_response)
     try:
         attacker_completion = client.chat.completions.create(
             model=model, messages=[
@@ -194,7 +189,7 @@ def adversarial_anonymization(
             temperature=0.1,
         )
         response_text = attacker_completion.choices[0].message.content or ""
-        
+
         # --- 详细日志记录 ---
         logging.debug(f"{record_log_prefix} --- Initial Attacker (Round 0) FULL OUTPUT ---")
         logging.debug(response_text)
@@ -202,10 +197,11 @@ def adversarial_anonymization(
         # --- 结束详细日志 ---
 
         parsed_attack = parse_attacker_output(response_text)
-        
+
         attacker_guess = parsed_attack["guess_json"]
         feedback = parsed_attack["inference"] # <--- 关键：反馈现在是推理
-        
+        # certainty = parsed_attack["certainty"] # <--- 存储 certainty (如果需要)
+
         meta["final_attacker_guess"] = attacker_guess
 
     except Exception as e:
@@ -216,7 +212,7 @@ def adversarial_anonymization(
     # 检查初始攻击是否泄露
     leaked = compare_profiles(true_personality, attacker_guess)
     meta["final_leaked_attributes"] = leaked
-    
+
     if not leaked:
         meta["status"] = "success_on_original" # 原始文本就是匿名的
         meta["iterations_used"] = 0
@@ -229,11 +225,11 @@ def adversarial_anonymization(
     for i in range(max_iterations):
         iteration_log_prefix = f"{record_log_prefix} [Round {i+1}/{max_iterations}]"
         meta["iterations_used"] = i + 1
-        
+
         # 1) 匿名化 (Anonymizer, M_anon)
         logging.debug(f"{iteration_log_prefix} Calling Anonymizer...")
+        # 更新 format 调用
         anonymizer_prompt_user = PROMPT_ANONYMIZER_USER.format(
-            question_asked=question_asked,
             feedback=feedback, # <--- 传递推理
             user_response=current_anonymized_response
         )
@@ -256,12 +252,10 @@ def adversarial_anonymization(
             # --- 解析 CoT 输出 (论文要求) ---
             parts = message_content.split('#', 1)
             if len(parts) == 2:
-                # explanation = parts[0].strip() # 解释现在包含在完整日志中
                 current_anonymized_response = parts[1].strip().strip('"').strip()
             else:
-                # explanation = "No explanation provided (LLM failed to follow format)."
                 current_anonymized_response = message_content.strip().strip('"').strip()
-            
+
         except Exception as e:
             meta["status"] = "api_error"; meta["error"] = f"anonymizer_error_round_{i}: {str(e)}"
             logging.error(f"{iteration_log_prefix} API Error during anonymization.", exc_info=True)
@@ -269,9 +263,8 @@ def adversarial_anonymization(
 
         # 2) 攻击者推断 (Attacker, M_inf)
         logging.debug(f"{iteration_log_prefix} Calling Attacker...")
-        attacker_prompt_user = PROMPT_ATTACKER_USER.format(
-            question_asked=question_asked, user_response=current_anonymized_response
-        )
+        # 更新 format 调用
+        attacker_prompt_user = PROMPT_ATTACKER_USER.format(user_response=current_anonymized_response)
         try:
             attacker_completion = client.chat.completions.create(
                 model=model, messages=[
@@ -292,6 +285,7 @@ def adversarial_anonymization(
 
             attacker_guess = parsed_attack["guess_json"]
             feedback = parsed_attack["inference"] # <--- 获取 *下一次* 循环的反馈
+            # certainty = parsed_attack["certainty"] # <--- 存储 certainty (如果需要)
             meta["final_attacker_guess"] = attacker_guess
 
         except Exception as e:
@@ -302,18 +296,19 @@ def adversarial_anonymization(
         # 3) 评判泄露 (Judge) - 使用本地代码的确定性逻辑
         leaked = compare_profiles(true_personality, attacker_guess)
         meta["final_leaked_attributes"] = leaked
-        
+
         if not leaked:
             meta["status"] = "success"
             logging.info(f"{iteration_log_prefix} Success! No leaks found.")
             return current_anonymized_response, meta
         else:
             logging.info(f"{iteration_log_prefix} Leaks found: {leaked}. Continuing loop.")
-            
-    # D达到最大迭代次数
+
+    # 达到最大迭代次数
     logging.info(f"{record_log_prefix} Max iterations reached. Final leaks: {leaked}")
     return current_anonymized_response, meta
 
+# --- 已修改：process_record (移除 question_asked 参数传递) ---
 def process_record(data: Dict[str, Any], max_iterations: int, record_id: int) -> Dict[str, Any]:
     """
     辅助函数，用于处理单条记录。
@@ -321,11 +316,11 @@ def process_record(data: Dict[str, Any], max_iterations: int, record_id: int) ->
     """
     record_log_prefix = f"[Record-{record_id}]"
     logging.debug(f"{record_log_prefix} Starting processing.")
-    
+
     # 强制转换为 str，以匹配本地代码中的处理逻辑
     try:
         personality = data.get("personality")
-        question = str(data.get("question_asked"))
+        question = str(data.get("question_asked")) # 仍然读取 question，但不传递给 LLM
         response = str(data.get("response"))
     except Exception:
         status = "skipped_data_read_error"
@@ -338,15 +333,16 @@ def process_record(data: Dict[str, Any], max_iterations: int, record_id: int) ->
         logging.warning(f"{record_log_prefix} Skipped: Incomplete data.")
         data["anonymization_meta"] = {"status": status}
         return data
-    
+
     if not isinstance(personality, dict):
         status = "skipped_invalid_personality"
         logging.warning(f"{record_log_prefix} Skipped: Invalid personality format.")
         data["anonymization_meta"] = {"status": status}
         return data
 
+    # 更新调用：移除 question_asked
     anonymized_response, meta = adversarial_anonymization(
-        question_asked=question,
+        # question_asked=question, # <--- 移除
         original_response=response,
         true_personality=personality,
         max_iterations=max_iterations,
@@ -354,7 +350,7 @@ def process_record(data: Dict[str, Any], max_iterations: int, record_id: int) ->
         client=GLOBAL_CLIENT,
         record_id=record_id  # 传递 ID
     )
-    
+
     data["anonymized_response"] = anonymized_response
     data["anonymization_meta"] = meta
     return data
@@ -375,13 +371,13 @@ def main():
     # 添加日志参数
     parser.add_argument("--debug", action="store_true", help="Enable debug level logging.")
     parser.add_argument("--log_file", type=str, default=None, help="Optional path to save logs to a file.")
-    
+
     args = parser.parse_args()
 
     # --- 日志设置 ---
     log_level = logging.DEBUG if args.debug else logging.INFO
     log_format = '%(asctime)s - %(levelname)s - %(message)s'
-    
+
     # 根据参数配置日志记录
     if args.log_file:
         # 同时记录到文件和控制台
@@ -405,7 +401,7 @@ def main():
     # --- Client/Model 初始化 ---
     if args.model:
         LLM_MODEL = args.model
-        
+
     if args.api_key or args.base_url:
         try:
             GLOBAL_CLIENT = OpenAI(
@@ -417,7 +413,7 @@ def main():
         except Exception as e:
             logging.error(f"Failed to reinitialize client: {e}", exc_info=True)
             sys.exit(1)
-            
+
     # --- 数据加载 ---
     try:
         with open(args.input_file, 'r', encoding='utf-8') as f:
@@ -434,26 +430,26 @@ def main():
 
     if args.limit:
         records_with_ids = records_with_ids[:args.limit]
-    
+
     logging.info(f"Starting parallel processing for {len(records_with_ids)} records with model {LLM_MODEL} using up to {args.max_workers} workers...")
 
     # --- 并行处理 ---
     results = []
     # 跟踪状态
     counters = {
-        "success": 0, "success_on_original": 0, "max_iterations_reached": 0, 
-        "api_error": 0, "skipped_data_read_error": 0, 
-        "skipped_incomplete_data": 0, "skipped_invalid_personality": 0, 
+        "success": 0, "success_on_original": 0, "max_iterations_reached": 0,
+        "api_error": 0, "skipped_data_read_error": 0,
+        "skipped_incomplete_data": 0, "skipped_invalid_personality": 0,
         "unknown_fail": 0
     }
 
     with ThreadPoolExecutor(max_workers=args.max_workers) as executor:
         # 提交时传递 record_id
         future_to_record = {
-            executor.submit(process_record, record_data, args.max_iterations, record_id): record_data 
+            executor.submit(process_record, record_data, args.max_iterations, record_id): record_data
             for record_id, record_data in records_with_ids
         }
-        
+
         for future in tqdm(as_completed(future_to_record), total=len(records_with_ids), desc="Anonymizing profiles"):
             try:
                 processed_record = future.result()
@@ -470,16 +466,16 @@ def main():
 
     # --- 结果写入 ---
     logging.info(f"\nProcessing complete. Writing {len(results)} results to output files...")
-    
+
     with open(args.output_file, 'w', encoding='utf-8') as outfile, \
          open(args.success_file, 'w', encoding='utf-8') if args.success_file else open(os.devnull, 'w') as success_out, \
          open(args.failed_file, 'w', encoding='utf-8') if args.failed_file else open(os.devnull, 'w') as failed_out:
-        
+
         for result in results:
             outfile.write(json.dumps(result, ensure_ascii=False) + '\n')
             meta = result.get("anonymization_meta", {})
             status = meta.get("status")
-            
+
             if status in ("success", "success_on_original"):
                 success_out.write(json.dumps(result, ensure_ascii=False) + '\n')
             else: # 捕获所有其他状态 (失败, 跳过, 错误)
@@ -492,7 +488,7 @@ def main():
         if count > 0:
             logging.info(f"  {status}: {count}")
     logging.info("--- End Summary ---")
-    
+
     logging.info(f"Anonymized data saved to '{args.output_file}'.")
     if args.success_file:
         logging.info(f"Successful anonymizations saved to '{args.success_file}'.")

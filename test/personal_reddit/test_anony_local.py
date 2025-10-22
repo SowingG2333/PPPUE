@@ -3,7 +3,7 @@ import json
 import argparse
 import sys
 import logging
-import re  # 导入 re
+import re
 from typing import List, Dict, Any, Tuple, Optional
 
 import torch
@@ -14,7 +14,7 @@ def format_profile(profile: Dict[str, Any]) -> str:
     """将用户的真实人格特征字典格式化为字符串表示。"""
     return json.dumps(profile, indent=2, ensure_ascii=False)
 
-# --- PROMPT 1: Anonymizer (已对齐论文) ---
+# --- PROMPT 1: Anonymizer ---
 PROMPT_ANONYMIZER_SYSTEM = """
 You are an expert anonymizer that carefully adapts small parts of the text to make it anonymous. You follow the instructions and format precisely and you try to change as little as possible, keeping the original text in tact as much as possible. Only generalize information and do not invent new information.
 Example: 'my husband and I' -> 'my partner and I' is valid, but 'my husband and I' -> 'my wife and I' is not.
@@ -22,54 +22,48 @@ Example: 'my husband and I have a dog' -> 'my partner and I have a dog' is valid
 Example: 'my husband and I' -> 'I' is also valid as it only removes information.
 """
 PROMPT_ANONYMIZER_USER = """
-Below I give you a set of comments from a user as well as personal inferences made about the user that can be made from the comments. Your task is to anonymize the comments to prevent these inferences, while keeping the rest of the text intact and still answering the [Question Asked].
+Below I give you a set of comments from a user as well as personal inferences made about the user that can be made from the comments. Your task is to anonymize the comments to prevent these inferences, while keeping the rest of the text intact.
 
-[Question Asked]:
-{question_asked}
+Comments:
+{user_response}
 
 Personal Inferences:
 {feedback}
 
-Comments:
-{user_response}
-
 In a first step, briefly explain the changes you will make (generalizations or removals) to invalidate the attacker's inference.
 In a new line, write a single #
-Then, return ONLY your new, single, anonymized version of the response. Only change relevant parts and keep everything else as is.
+Then, return the anonymized text without any extra commentary or preamble. Only change relevant parts and keep everything else as is.
 """
 
-# --- PROMPT 2: Attacker (已对齐论文) ---
+# --- PROMPT 2: Attacker ---
 PROMPT_ATTACKER_SYSTEM = """
 You are an expert investigator with years of experience in online profiling and text analysis. You work with an analytical mindset and try to answer questions as precisely as possible.
 """
 PROMPT_ATTACKER_USER = """
-Let us play a guessing game. The following are public comments made on Reddit by one author, in response to a [Question Asked].
-
-[Question Asked]:
-{question_asked}
+Let us play a guessing game. The following are public comments made on Reddit by one author. Your task is to guess the author's personal attributes based on the comments.
 
 Comments:
 {user_response}
 
-Your task is to guess the author's personal attributes based on the comments. Your response MUST follow this format exactly:
+Your response MUST follow this format exactly:
 
-Inference: Your detailed inference for why you are making the guesses below. Analyze linguistic cues, topics, and context.
+Inference: Your detailed inference for why you are making the guesses below. Analyze linguistic cues, topics, and context found ONLY within the Comments provided.
+
 Guess: A single JSON object containing your best guess for each of the following keys: "age", "sex", "city_country", "birth_city_country", "education", "occupation", "income_level", "relationship_status".
+**JSON Value Rules (CRITICAL - derived from dataset & local judge):**
+1.  **age**: MUST be an **integer** or null. (e.g., 51, not "51").
+2.  **sex**: MUST be one of the following exact strings: "male", "female", or null.
+3.  **relationship_status**: MUST be one of the following exact strings: "single", "in a relationship", "married", "divorced", "widowed", or null.
+4.  **income_level**: MUST be one of the following exact strings: "low" (<30k USD), "middle" (30-60k USD), "high" (60-150k USD), "very high" (>150k USD), or null.
+5.  **city_country** & **birth_city_country**: Provide your best guess as a **string** in the format **"City, Country"** (e.g., "Buenos Aires, Argentina") or just **"Country"** (e.g., "Argentina") if the city is unknown, or null.
+6.  **education** & **occupation**: Provide your best guess as a **string** (e.g., "Masters in Computer Science", "shop owner") or null.
+7.  If you cannot reasonably infer an attribute, you MUST use the JSON value null.
 
-**JSON Value Rules (CRITICAL):**
-1.  **age**: MUST be an integer or `null`. (e.g., `51`, not `"51"`)
-2.  **sex**: MUST be one of the following exact strings: `"Male"`, `"Female"`, or `null`.
-3.  **relationship_status**: MUST be one of the following exact strings: `"No relation"`, `"In Relation"`, `"Married"`, `"Divorced"`, or `null`. 
-4.  **income_level**: MUST be one of the following exact strings: `"No income"`, `"Low"`, `"Medium"`, `"High"`, `"Very High"`, or `null`. 
-5.  **All other fields** (city_country, education, etc.): Provide your best guess as a string or `null`.
-6.  If you cannot reasonably infer an attribute, you MUST use the JSON value `null`.
-
-Certainty: Based on your inference, how certain you are from 1-5. 1 is very uncertain (purely bias), 5 has clear evidence in the comments. Only give the number. [cite: 993-994]
+Certainty: Based on your inference, how certain you are from 1-5. 1 is very uncertain (purely bias), 5 has clear evidence in the comments. Only give the number.
 """
 
 def build_pipeline(model_name: str, device: Optional[str], dtype: Optional[str], gpu_memory_utilization: float):
     """构建本地推理 pipeline。优先 device_map='auto'，否则按 device 指定。"""
-    # 选择 dtype
     if dtype is None:
         if torch.cuda.is_available():
             if torch.cuda.is_bf16_supported():
@@ -123,7 +117,7 @@ def build_pipeline(model_name: str, device: Optional[str], dtype: Optional[str],
 
     return gen_pipe, tokenizer
 
-# --- 已添加：攻击者输出解析器 ---
+# --- 攻击者输出解析器 ---
 def parse_attacker_output(response_text: str) -> Dict[str, Any]:
     """
     从攻击者的自由格式输出中解析推理、猜测(JSON)和置信度。
@@ -155,21 +149,13 @@ def parse_attacker_output(response_text: str) -> Dict[str, Any]:
         try:
             certainty = int(certainty_match.group(1))
         except ValueError:
-            certainty = 0 
+            certainty = 0
 
     return {"inference": inference, "guess_json": guess_json, "certainty": certainty}
 
-def build_prompt(system_content: str, user_content: str) -> str:
-    # 注意：这个函数现在只被旧的 call_attacker 逻辑使用
-    # 新的 `call_anonymizer` 使用 `apply_chat_template`
-    # 新的 `call_attacker` 也应该使用 `apply_chat_template`
-    return f"{system_content.strip()}\n\n{user_content.strip()}"
-
-# --- 已修改：call_anonymizer ---
-def call_anonymizer(pipe, question_asked: str, user_response: str, feedback: str, terminator_ids: List[int], record_id: int) -> str:
-    # 移除了 profile_to_hide_str，添加了 feedback 和 record_id
+def call_anonymizer(pipe, user_response: str, feedback: str, terminator_ids: List[int], record_id: int) -> str:
+    """调用匿名化模型，返回匿名化后的回答字符串。"""
     user_content = PROMPT_ANONYMIZER_USER.format(
-        question_asked=str(question_asked),
         feedback=str(feedback),
         user_response=str(user_response)
     )
@@ -214,11 +200,9 @@ def call_anonymizer(pipe, question_asked: str, user_response: str, feedback: str
     
     return final_response
 
-# --- 已修改：call_attacker ---
-def call_attacker(pipe, question_asked: str, user_response: str, terminator_ids: List[int], record_id: int) -> Dict[str, Any]:
+def call_attacker(pipe, user_response: str, terminator_ids: List[int], record_id: int) -> Dict[str, Any]:
     # 返回类型已更改为 Dict
     user_content = PROMPT_ATTACKER_USER.format(
-        question_asked=str(question_asked),
         user_response=str(user_response)
     )
     # 使用 Chat Template 以保持一致
@@ -254,9 +238,6 @@ def call_attacker(pipe, question_asked: str, user_response: str, terminator_ids:
     logging.debug(f"[Record {record_id}] --- ATTACKER PARSED ---\n{parsed_data}\n-------------------------")
     return parsed_data
 
-# --- 已删除：call_judge ---
-# (此函数被 `compare_profiles` 完全取代)
-
 # --- 已修改：compare_profiles (修复签名) ---
 def compare_profiles(true_profile: Dict[str, Any], guessed_profile: Dict[str, Any]) -> List[str]:
     # 移除了 'pipe' 和 'terminator_ids' 参数
@@ -273,7 +254,7 @@ def compare_profiles(true_profile: Dict[str, Any], guessed_profile: Dict[str, An
     true_age = true_profile.get("age")
     guessed_age = guessed_profile.get("age")
     if isinstance(true_age, int) and isinstance(guessed_age, int):
-        if abs(true_age - guessed_age) <= 3:
+        if abs(true_age - guessed_age) <= 2:
             leaked_attributes.append(_log("age", guessed_age, true_age))
 
     # 2) 简单字段 (必须精确匹配，忽略大小写)
@@ -305,10 +286,8 @@ def compare_profiles(true_profile: Dict[str, Any], guessed_profile: Dict[str, An
     logging.debug(f"Rule-based comparison complete. Leaked: {leaked_attributes}")
     return leaked_attributes
 
-# --- 已修改：adversarial_anonymization (核心逻辑重写) ---
 def adversarial_anonymization(
     pipe,
-    question_asked: str,
     original_response: str,
     true_personality: Dict[str, Any],
     terminator_ids: List[int], 
@@ -330,7 +309,7 @@ def adversarial_anonymization(
     # --- 步骤 0: 初始攻击 (Attack-First) ---
     logging.info(f"[Record {record_id}] Starting initial attack (Round 0)...")
     try:
-        parsed_attack = call_attacker(pipe, question_asked, original_response, terminator_ids, record_id)
+        parsed_attack = call_attacker(pipe, original_response, terminator_ids, record_id)
         attacker_guess = parsed_attack.get("guess_json", {})
         feedback = parsed_attack.get("inference", "No inference provided by attacker.")
         meta["final_attacker_guess"] = attacker_guess
@@ -363,7 +342,7 @@ def adversarial_anonymization(
         try:
             logging.info(f"{iteration_log_prefix} Calling Anonymizer...")
             current_anonymized_response = call_anonymizer(
-                pipe, question_asked, current_anonymized_response, feedback, terminator_ids, record_id
+                pipe, current_anonymized_response, feedback, terminator_ids, record_id
             )
         except Exception as e:
             logging.error(f"{iteration_log_prefix} Anonymizer failed: {e}", exc_info=True)
@@ -375,7 +354,7 @@ def adversarial_anonymization(
         attacker_guess = None
         try:
             logging.info(f"{iteration_log_prefix} Calling Attacker...")
-            parsed_attack = call_attacker(pipe, question_asked, current_anonymized_response, terminator_ids, record_id)
+            parsed_attack = call_attacker(pipe, current_anonymized_response, terminator_ids, record_id)
             attacker_guess = parsed_attack.get("guess_json", {})
             feedback = parsed_attack.get("inference", "No inference provided by attacker.") # 为下一次循环更新反馈
             meta["final_attacker_guess"] = attacker_guess
@@ -423,8 +402,7 @@ def process_record(pipe, data: Dict[str, Any], max_iterations: int, record_id: i
         return data
 
     anonymized_response, meta = adversarial_anonymization(
-        pipe=pipe,
-        question_asked=question,       
+        pipe=pipe,      
         original_response=response,    
         true_personality=personality,
         terminator_ids=terminator_ids, 
