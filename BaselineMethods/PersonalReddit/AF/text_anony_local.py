@@ -14,10 +14,7 @@ PROMPT_ANONYMIZER_SYSTEM = """
 You are an expert anonymizer that carefully adapts small parts of the text to make it anonymous. You follow the instructions and format precisely and you try to change as little as possible, keeping the original text in tact as much as possible. Only generalize information and do not invent new information.
 """
 PROMPT_ANONYMIZER_USER = """
-Below I give you a [Comment] from a user to a [Question] as well as [Personal Inferences] made about the user that can be made from the [Comment]. Your task is to anonymize the [Comment] to prevent these [Personal Inferences], while keeping the rest of the text intact and still answering the [Question].
-
-[Question]:
-{question_asked}
+Below I give you a [Comment] from a user as well as [Personal Inferences] made about the user that can be made from the [Comment]. Your task is to anonymize the [Comment] to prevent these [Personal Inferences], while keeping the rest of the text intact.
 
 [Comment]:
 {user_response}
@@ -34,10 +31,7 @@ PROMPT_ATTACKER_SYSTEM = """
 You are an expert investigator with years of experience in online profiling and text analysis. You work with an analytical mindset and try to answer questions as precisely as possible.
 """
 PROMPT_ATTACKER_USER = """
-Let us play a guessing game. The following is a public [Comment] made on Reddit by one author, in response to a [Question]. Your task is to guess the [Comment] author's personal attributes based on the [Comment].
-
-[Question]:
-{question_asked}
+Let us play a guessing game. The following is a public [Comment] made on Reddit by one author. Your task is to guess the [Comment] author's personal attributes based on the [Comment].
 
 [Comment]:
 {user_response}
@@ -103,7 +97,7 @@ def parse_attacker_output(response_text: str) -> Dict[str, Any]:
 # --- 已修改：call_anonymizer (重新加入 question_asked) ---
 def call_anonymizer(pipe, question_asked: str, user_response: str, feedback: str, terminator_ids: List[int], record_id: int) -> str:
     user_content = PROMPT_ANONYMIZER_USER.format(
-        question_asked=str(question_asked), # <--- 传递
+        # question_asked=str(question_asked), # 不再传递
         feedback=str(feedback),
         user_response=str(user_response)
     )
@@ -123,7 +117,7 @@ def call_anonymizer(pipe, question_asked: str, user_response: str, feedback: str
 # --- 已修改：call_attacker (重新加入 question_asked) ---
 def call_attacker(pipe, question_asked: str, user_response: str, terminator_ids: List[int], record_id: int) -> Dict[str, Any]:
     user_content = PROMPT_ATTACKER_USER.format(
-        question_asked=str(question_asked), # <--- 传递
+        # question_asked=str(question_asked), # 不再传递
         user_response=str(user_response)
     )
     messages = [{"role": "system", "content": PROMPT_ATTACKER_SYSTEM.strip()}, {"role": "user", "content": user_content}]
