@@ -34,10 +34,7 @@ PROMPT_ANONYMIZER_SYSTEM = """
 You are an expert anonymizer that carefully adapts small parts of the text to make it anonymous. You follow the instructions and format precisely and you try to change as little as possible, keeping the original text in tact as much as possible. Only generalize information and do not invent new information.
 """
 PROMPT_ANONYMIZER_USER = """
-Below I give you a [Comment] from a user to a [Question] as well as [Personal Inferences] made about the user that can be made from the [Comment]. Your task is to anonymize the [Comment] to prevent these [Personal Inferences], while keeping the rest of the text intact and still answering the [Question].
-
-[Question]:
-{question_asked}
+Below I give you a [Comment] from a user as well as [Personal Inferences] made about the user that can be made from the [Comment]. Your task is to anonymize the [Comment] to prevent these [Personal Inferences], while keeping the rest of the text intact.
 
 [Comment]:
 {user_response}
@@ -54,10 +51,7 @@ PROMPT_ATTACKER_SYSTEM = """
 You are an expert investigator with years of experience in online profiling and text analysis. You work with an analytical mindset and try to answer questions as precisely as possible.
 """
 PROMPT_ATTACKER_USER = """
-Let us play a guessing game. The following is a public [Comment] made on Reddit by one author, in response to a [Question]. Your task is to guess the [Comment] author's personal attributes based on the [Comment].
-
-[Question]:
-{question_asked}
+Let us play a guessing game. The following is a public [Comment] made on Reddit by one author. Your task is to guess the [Comment] author's personal attributes based on the [Comment].
 
 [Comment]:
 {user_response}
@@ -170,7 +164,7 @@ def adversarial_anonymization(
     # --- 步骤 0: 初始攻击 ---
     logging.debug(f"{record_log_prefix} Starting initial attack (Round 0)...")
     attacker_prompt_user = PROMPT_ATTACKER_USER.format(
-        question_asked=question_asked, # <--- 传递
+        # question_asked=question_asked, # 暂时不传递
         user_response=original_response
     )
     try:
@@ -210,7 +204,7 @@ def adversarial_anonymization(
         # 1) 匿名化
         logging.debug(f"{iteration_log_prefix} Calling Anonymizer...")
         anonymizer_prompt_user = PROMPT_ANONYMIZER_USER.format(
-            question_asked=question_asked, # <--- 传递
+            # question_asked=question_asked, # 暂时不传递
             feedback=feedback,
             user_response=current_anonymized_response
         )
@@ -234,7 +228,7 @@ def adversarial_anonymization(
         # 2) 攻击者推断
         logging.debug(f"{iteration_log_prefix} Calling Attacker...")
         attacker_prompt_user = PROMPT_ATTACKER_USER.format(
-            question_asked=question_asked, # <--- 传递
+            # question_asked=question_asked, # 暂时不传递
             user_response=current_anonymized_response
         )
         try:
@@ -318,7 +312,7 @@ def main():
     parser.add_argument("--input_file", type=str, required=True, help="Path to the input JSONL file (e.g., train.jsonl).")
     parser.add_argument("--output_file", type=str, required=True, help="Path to the output JSONL file.")
     parser.add_argument("--model", type=str, default=LLM_MODEL, help=f"LLM model name (default: {LLM_MODEL})")
-    parser.add_argument("--max_iterations", type=int, default=5, help="Maximum adversarial iterations per record.")
+    parser.add_argument("--max_iterations", type=int, default=3, help="Maximum adversarial iterations per record.")
     parser.add_argument("--api_key", type=str, default=None, help="Override API key (default: use API_KEY env)")
     parser.add_argument("--base_url", type=str, default=None, help="Override API base URL.")
     parser.add_argument("--success_file", type=str, default=None, help="Optional path to save only successful records.")
@@ -392,7 +386,7 @@ def main():
             if status in ("success", "success_on_original"): success_out.write(json.dumps(result, ensure_ascii=False) + '\n')
             else: failed_out.write(json.dumps(result, ensure_ascii=False) + '\n')
 
-    # --- 记录最终摘要 (保持不变) ---
+    # --- 记录最终摘要 ---
     logging.info("--- Processing Summary ---")
     logging.info(f"Total records processed: {len(results)}")
     for status, count in counters.items():
